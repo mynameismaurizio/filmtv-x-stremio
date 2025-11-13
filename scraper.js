@@ -1,4 +1,8 @@
 const axios = require('axios');
+const cheerio = require('cheerio');
+
+// FilmTV.it configuration
+const FILMTV_BASE_URL = 'https://www.filmtv.it';
 
 // TMDB API configuration
 const TMDB_API_KEY = process.env.TMDB_API_KEY || 'YOUR_TMDB_API_KEY_HERE';
@@ -8,6 +12,25 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 // Cache to avoid repeated requests
 const cache = new Map();
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+
+async function fetchWithCache(url) {
+  const now = Date.now();
+  if (cache.has(url)) {
+    const { data, timestamp } = cache.get(url);
+    if (now - timestamp < CACHE_DURATION) {
+      return data;
+    }
+  }
+
+  const response = await axios.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+  });
+
+  cache.set(url, { data: response.data, timestamp: now });
+  return response.data;
+}
 
 async function fetchFromTMDB(endpoint, params = {}) {
   const url = `${TMDB_BASE_URL}${endpoint}`;
@@ -81,25 +104,102 @@ async function getMovieWithIMDB(tmdbId) {
   }
 }
 
-async function getBestOfYear(year) {
+async function searchMovieOnTMDB(title, year) {
   try {
-    // Fetch top rated movies from that year
-    const response = await fetchFromTMDB('/discover/movie', {
-      primary_release_year: year,
-      sort_by: 'vote_average.desc',
-      'vote_count.gte': 100, // Only include movies with at least 100 votes
-      region: 'IT' // Prioritize Italian releases
+    // Search for the movie on TMDB by title and year
+    const searchResults = await fetchFromTMDB('/search/movie', {
+      query: title,
+      year: year,
+      include_adult: false
     });
 
-    if (!response.results || response.results.length === 0) {
+    if (!searchResults.results || searchResults.results.length === 0) {
+      console.log(`No TMDB results for: ${title} (${year})`);
+      return null;
+    }
+
+    // Get the first result (most relevant)
+    const tmdbId = searchResults.results[0].id;
+
+    // Fetch full movie details including IMDB ID
+    const fullMovie = await getMovieWithIMDB(tmdbId);
+    return fullMovie ? convertTMDBToStremio(fullMovie) : null;
+  } catch (error) {
+    console.error(`Error searching TMDB for ${title}:`, error.message);
+    return null;
+  }
+}
+
+async function scrapeFilmTVList(year) {
+  const url = `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#`;
+
+  try {
+    const html = await fetchWithCache(url);
+    const $ = cheerio.load(html);
+
+    const movies = [];
+    const seen = new Set();
+
+    // Find all numbered movie entries like "1.Movie Title"
+    $('h3, h2, h4').each((_, elem) => {
+      const text = $(elem).text().trim();
+
+      // Match numbered entries like "1.Title" at the start
+      const match = text.match(/^(\d+)\.\s*(.+?)$/);
+
+      if (match) {
+        let title = match[2].trim();
+
+        // Remove everything after newline or tab
+        title = title.split('\n')[0].split('\t')[0].trim();
+
+        // Skip if it's not a valid title
+        if (title.length < 3 ||
+            title.includes('La recensione') ||
+            title.includes('Uscito in Italia') ||
+            title.includes('Uscita in Italia') ||
+            title.includes('streaming') ||
+            title.includes('migliori') ||
+            seen.has(title)) {
+          return;
+        }
+
+        seen.add(title);
+        movies.push({
+          title: title,
+          year: year
+        });
+      }
+    });
+
+    console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
+    return movies.slice(0, 30); // Limit to 30 movies
+  } catch (error) {
+    console.error(`Error scraping FilmTV.it for ${year}:`, error.message);
+    return [];
+  }
+}
+
+async function getBestOfYear(year) {
+  try {
+    // Step 1: Scrape movie titles from FilmTV.it
+    const filmtvMovies = await scrapeFilmTVList(year);
+
+    if (filmtvMovies.length === 0) {
+      console.log(`No movies found on FilmTV.it for ${year}`);
       return [];
     }
 
-    // Get full details with IMDB IDs for each movie
+    // Step 2: For each movie, search TMDB to get IMDB ID and metadata
     const moviesWithDetails = await Promise.all(
-      response.results.slice(0, 20).map(async (movie) => {
-        const fullMovie = await getMovieWithIMDB(movie.id);
-        return fullMovie ? convertTMDBToStremio(fullMovie) : null;
+      filmtvMovies.map(async (movie) => {
+        const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year);
+        if (tmdbMovie) {
+          console.log(`✓ Found on TMDB: ${movie.title}`);
+        } else {
+          console.log(`✗ Not found on TMDB: ${movie.title}`);
+        }
+        return tmdbMovie;
       })
     );
 
