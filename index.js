@@ -61,29 +61,8 @@ builder.defineCatalogHandler(async ({ type, id, extra }) => {
     const movies = await getBestOfYear(year);
     console.log(`Found ${movies.length} movies for ${year}`);
 
-    // Convert to Stremio meta format
-    const metas = movies.map(movie => ({
-      id: movie.id,
-      type: 'movie',
-      name: movie.name,
-      poster: movie.poster,
-      posterShape: 'poster',
-      background: movie.poster,
-      logo: movie.poster,
-      description: `${movie.genre ? movie.genre.join(', ') : ''}\n` +
-                   `${movie.director ? 'Directed by ' + movie.director.join(', ') : ''}\n` +
-                   `${movie.cast.length ? 'Cast: ' + movie.cast.slice(0, 3).join(', ') : ''}`,
-      releaseInfo: movie.year,
-      imdbRating: movie.rating ? movie.rating.toString() : undefined,
-      genres: movie.genre || [],
-      director: movie.director || [],
-      cast: movie.cast || [],
-      runtime: movie.runtime,
-      country: movie.country,
-      website: movie.filmtvUrl
-    }));
-
-    return { metas };
+    // Movies are already in Stremio format from TMDB scraper
+    return { metas: movies };
   } catch (error) {
     console.error('Error in catalog handler:', error);
     return { metas: [] };
@@ -94,17 +73,17 @@ builder.defineCatalogHandler(async ({ type, id, extra }) => {
 builder.defineMetaHandler(async ({ type, id }) => {
   console.log(`Meta request: type=${type}, id=${id}`);
 
-  if (type !== 'movie' || !id.startsWith('filmtv_')) {
+  if (type !== 'movie' || !id.startsWith('tt')) {
     return { meta: null };
   }
 
-  // For now, return basic info
-  // In future, could scrape individual movie pages for more details
+  // For IMDB IDs, return basic info
+  // Stremio will use the catalog data for display
   return {
     meta: {
       id: id,
       type: 'movie',
-      name: 'Movie from FilmTV.it',
+      name: 'Movie',
       description: 'See catalog for details'
     }
   };

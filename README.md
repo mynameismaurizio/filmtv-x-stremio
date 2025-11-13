@@ -1,65 +1,68 @@
-# Stremio FilmTV.it Addon
+# FilmTV.X Stremio Addon
 
-A Stremio addon that provides curated movie lists from [FilmTV.it](https://www.filmtv.it), including "Best of Year" collections.
+A Stremio addon that provides curated movie catalogs using TMDB (The Movie Database) API.
 
 ## Features
 
-- Browse best movies by year (2023, 2024, 2025)
-- Movie metadata including ratings, genres, directors, and cast
-- Automatic caching to reduce server load
-- Easy deployment to Hugging Face Spaces
+- 📽️ Browse best movies by year (2023, 2024, 2025)
+- 🎬 High-quality posters and metadata from TMDB
+- 🇮🇹 Italian language support
+- ⭐ Movie ratings and descriptions
+- 🎯 Proper IMDB ID integration for seamless Stremio experience
 
-## Installation
+## Installation in Stremio
+
+Install the addon using this URL:
+```
+https://cacaspruz-filmtv-x-stremio.hf.space/manifest.json
+```
+
+## For Developers
+
+### Prerequisites
+
+- Node.js 20+
+- TMDB API key (free from https://www.themoviedb.org/settings/api)
 
 ### Local Development
 
-1. Clone the repository using **GitHub Desktop**:
-   - Open GitHub Desktop
-   - Click **File** → **Clone Repository**
-   - Click the **URL** tab
-   - Enter: `https://github.com/YOUR_USERNAME/filmtv-x-stremio.git`
-   - Choose where to save it on your computer
-   - Click **Clone**
-
+1. Clone this repository
 2. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
+3. Set your TMDB API key:
+   ```bash
+   export TMDB_API_KEY=your_api_key_here
+   ```
+4. Run the addon:
+   ```bash
+   npm start
+   ```
+5. The addon will be available at `http://localhost:7000/manifest.json`
 
-3. Start the addon:
-```bash
-npm start
-```
+## Deployment to Hugging Face Spaces
 
-4. The addon will be available at `http://localhost:7000`
+1. Create a new Space with Docker SDK
+2. Add your TMDB API key as a secret in Space settings:
+   - Go to your Space Settings
+   - Under "Variables and secrets" → "Secrets"
+   - Add: `TMDB_API_KEY` with your API key value
+3. Update the Dockerfile to use the latest code from GitHub
+4. The Space will automatically rebuild and deploy
 
-5. Add to Stremio by visiting: `http://localhost:7000/manifest.json`
+### Environment Variables
 
-### Deployment to Hugging Face
-
-This addon is designed to run on Hugging Face Spaces. The live version is available at:
-`https://YOUR_USERNAME-filmtv-x-stremio.hf.space`
-
-## Usage
-
-After installing the addon in Stremio:
-
-1. Open Stremio
-2. Go to the Board
-3. Look for "FilmTV.it - Best of [Year]" catalogs
-4. Browse curated movie lists from FilmTV.it
+- `TMDB_API_KEY` - Your TMDB API key (required)
+- `PORT` - Server port (default: 7860 for HF Spaces, 7000 for local)
 
 ## Technical Details
 
 - Built with [stremio-addon-sdk](https://github.com/Stremio/stremio-addon-sdk)
-- Web scraping with Axios and Cheerio
-- Includes 1-hour caching mechanism
-- Provides catalog resources for movie discovery
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Uses TMDB API for movie data
+- Caches API responses for 1 hour
+- Returns proper IMDB IDs for Stremio compatibility
 
 ## License
 
-MIT License
+MIT
