@@ -13,6 +13,9 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 const cache = new Map();
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
+// Catalog cache to avoid re-processing
+const catalogCache = new Map();
+
 async function fetchWithCache(url) {
   const now = Date.now();
   if (cache.has(url)) {
@@ -181,6 +184,18 @@ async function scrapeFilmTVList(year) {
 }
 
 async function getBestOfYear(year) {
+  // Check catalog cache first
+  const cacheKey = `catalog_${year}`;
+  const now = Date.now();
+
+  if (catalogCache.has(cacheKey)) {
+    const { data, timestamp } = catalogCache.get(cacheKey);
+    if (now - timestamp < CACHE_DURATION) {
+      console.log(`Using cached catalog for ${year}`);
+      return data;
+    }
+  }
+
   try {
     // Step 1: Scrape movie titles from FilmTV.it
     const filmtvMovies = await scrapeFilmTVList(year);
@@ -203,7 +218,13 @@ async function getBestOfYear(year) {
       })
     );
 
-    return moviesWithDetails.filter(m => m !== null);
+    const results = moviesWithDetails.filter(m => m !== null);
+
+    // Cache the processed catalog
+    catalogCache.set(cacheKey, { data: results, timestamp: now });
+    console.log(`Cached catalog for ${year} (${results.length} movies)`);
+
+    return results;
   } catch (error) {
     console.error('Error fetching best of year:', error.message);
     return [];
