@@ -1,0 +1,129 @@
+const { addonBuilder } = require('stremio-addon-sdk');
+const { getBestOfYear, getAllLists } = require('./scraper');
+
+// Define the addon manifest
+const manifest = {
+  id: 'community.filmtv.it',
+  version: '1.0.0',
+  name: 'FilmTV.it Lists',
+  description: 'Browse curated movie lists from FilmTV.it including best movies by year',
+  resources: ['catalog', 'meta'],
+  types: ['movie'],
+  catalogs: [
+    {
+      type: 'movie',
+      id: 'filmtv-best-2025',
+      name: 'FilmTV.it - Best of 2025',
+      extra: [{ name: 'skip', isRequired: false }]
+    },
+    {
+      type: 'movie',
+      id: 'filmtv-best-2024',
+      name: 'FilmTV.it - Best of 2024',
+      extra: [{ name: 'skip', isRequired: false }]
+    },
+    {
+      type: 'movie',
+      id: 'filmtv-best-2023',
+      name: 'FilmTV.it - Best of 2023',
+      extra: [{ name: 'skip', isRequired: false }]
+    }
+  ],
+  idPrefixes: ['filmtv_']
+};
+
+const builder = new addonBuilder(manifest);
+
+// Catalog handler
+builder.defineCatalogHandler(async ({ type, id, extra }) => {
+  console.log(`Catalog request: type=${type}, id=${id}`);
+
+  if (type !== 'movie') {
+    return { metas: [] };
+  }
+
+  let year;
+  switch (id) {
+    case 'filmtv-best-2025':
+      year = 2025;
+      break;
+    case 'filmtv-best-2024':
+      year = 2024;
+      break;
+    case 'filmtv-best-2023':
+      year = 2023;
+      break;
+    default:
+      return { metas: [] };
+  }
+
+  try {
+    const movies = await getBestOfYear(year);
+    console.log(`Found ${movies.length} movies for ${year}`);
+
+    // Convert to Stremio meta format
+    const metas = movies.map(movie => ({
+      id: movie.id,
+      type: 'movie',
+      name: movie.name,
+      poster: movie.poster,
+      posterShape: 'poster',
+      background: movie.poster,
+      logo: movie.poster,
+      description: `${movie.genre ? movie.genre.join(', ') : ''}\n` +
+                   `${movie.director ? 'Directed by ' + movie.director.join(', ') : ''}\n` +
+                   `${movie.cast.length ? 'Cast: ' + movie.cast.slice(0, 3).join(', ') : ''}`,
+      releaseInfo: movie.year,
+      imdbRating: movie.rating ? movie.rating.toString() : undefined,
+      genres: movie.genre || [],
+      director: movie.director || [],
+      cast: movie.cast || [],
+      runtime: movie.runtime,
+      country: movie.country,
+      website: movie.filmtvUrl
+    }));
+
+    return { metas };
+  } catch (error) {
+    console.error('Error in catalog handler:', error);
+    return { metas: [] };
+  }
+});
+
+// Meta handler (optional but provides better detail view)
+builder.defineMetaHandler(async ({ type, id }) => {
+  console.log(`Meta request: type=${type}, id=${id}`);
+
+  if (type !== 'movie' || !id.startsWith('filmtv_')) {
+    return { meta: null };
+  }
+
+  // For now, return basic info
+  // In future, could scrape individual movie pages for more details
+  return {
+    meta: {
+      id: id,
+      type: 'movie',
+      name: 'Movie from FilmTV.it',
+      description: 'See catalog for details'
+    }
+  };
+});
+
+const PORT = process.env.PORT || 7000;
+
+module.exports = builder.getInterface();
+
+// Start the addon server
+if (require.main === module) {
+  const addonInterface = builder.getInterface();
+  const { serveHTTP } = require('stremio-addon-sdk');
+
+  serveHTTP(addonInterface, { port: PORT }).then(() => {
+    console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
+    console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+  }).catch(err => {
+    console.error('Failed to start addon:', err);
+    process.exit(1);
+  });
+}
