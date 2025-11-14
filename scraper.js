@@ -128,7 +128,7 @@ function convertTMDBToStremio(tmdbMovie) {
     poster: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}` : null,
     posterShape: 'poster',
     background: tmdbMovie.backdrop_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.backdrop_path}` : null,
-    logo: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}` : null,
+    // Don't set logo - let MetaHub provide the title logo
     description: description,
     releaseInfo: tmdbMovie.release_date ? tmdbMovie.release_date.split('-')[0] : null,
     imdbRating: tmdbMovie.vote_average ? tmdbMovie.vote_average.toFixed(1) : null,
