@@ -1,5 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 
 // FilmTV.it configuration
 const FILMTV_BASE_URL = 'https://www.filmtv.it';
@@ -17,6 +19,46 @@ const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 const catalogCache = new Map();
 // In-flight promises to prevent duplicate concurrent requests
 const inFlightPromises = new Map();
+
+// Persistent file cache
+const CACHE_DIR = path.join(__dirname, '.cache');
+const CATALOG_CACHE_FILE = path.join(CACHE_DIR, 'catalogs.json');
+
+// Ensure cache directory exists
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+// Load catalog cache from disk on startup
+function loadCatalogCache() {
+  try {
+    if (fs.existsSync(CATALOG_CACHE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CATALOG_CACHE_FILE, 'utf8'));
+      Object.entries(data).forEach(([key, value]) => {
+        catalogCache.set(key, value);
+      });
+      console.log(`📁 Loaded catalog cache from disk (${Object.keys(data).length} entries)`);
+    }
+  } catch (error) {
+    console.error('Error loading catalog cache:', error.message);
+  }
+}
+
+// Save catalog cache to disk
+function saveCatalogCache() {
+  try {
+    const data = {};
+    catalogCache.forEach((value, key) => {
+      data[key] = value;
+    });
+    fs.writeFileSync(CATALOG_CACHE_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Error saving catalog cache:', error.message);
+  }
+}
+
+// Load cache on startup
+loadCatalogCache();
 
 async function fetchWithCache(url) {
   const now = Date.now();
@@ -73,7 +115,13 @@ function convertTMDBToStremio(tmdbMovie) {
   // We'll fetch the IMDB ID separately if needed
   const imdbId = tmdbMovie.imdb_id || `tt${tmdbMovie.id}`;
 
-  return {
+  // Build description with FilmTV rating if available
+  let description = tmdbMovie.overview || '';
+  if (tmdbMovie.filmtvRating) {
+    description = `⭐ FilmTV.it: ${tmdbMovie.filmtvRating}/10\n\n${description}`;
+  }
+
+  const stremioMovie = {
     id: imdbId,
     type: 'movie',
     name: tmdbMovie.title,
@@ -81,7 +129,7 @@ function convertTMDBToStremio(tmdbMovie) {
     posterShape: 'poster',
     background: tmdbMovie.backdrop_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.backdrop_path}` : null,
     logo: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}` : null,
-    description: tmdbMovie.overview || '',
+    description: description,
     releaseInfo: tmdbMovie.release_date ? tmdbMovie.release_date.split('-')[0] : null,
     imdbRating: tmdbMovie.vote_average ? tmdbMovie.vote_average.toFixed(1) : null,
     genres: tmdbMovie.genres ? tmdbMovie.genres.map(g => g.name) : (tmdbMovie.genre_ids ? [] : []),
@@ -90,6 +138,13 @@ function convertTMDBToStremio(tmdbMovie) {
       ? tmdbMovie.production_countries[0].iso_3166_1
       : null
   };
+
+  // Preserve filmtvRating if it exists
+  if (tmdbMovie.filmtvRating) {
+    stremioMovie.filmtvRating = tmdbMovie.filmtvRating;
+  }
+
+  return stremioMovie;
 }
 
 async function getMovieWithIMDB(tmdbId) {
@@ -169,10 +224,25 @@ async function scrapeFilmTVList(year) {
           return;
         }
 
+        // Try to find FilmTV rating in the movie's article container
+        let filmtvRating = null;
+        const article = $(elem).closest('article');
+
+        // Look for rating in footer with data-updcnt attribute
+        const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+        if (ratingSpan.length > 0) {
+          const ratingText = ratingSpan.text().trim();
+          const rating = parseFloat(ratingText);
+          if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+            filmtvRating = rating;
+          }
+        }
+
         seen.add(title);
         movies.push({
           title: title,
-          year: year
+          year: year,
+          filmtvRating: filmtvRating
         });
       }
     });
@@ -222,7 +292,11 @@ async function getBestOfYear(year) {
         filmtvMovies.map(async (movie) => {
           const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year);
           if (tmdbMovie) {
-            console.log(`✓ Found on TMDB: ${movie.title}`);
+            // Add FilmTV rating to the movie object
+            if (movie.filmtvRating) {
+              tmdbMovie.filmtvRating = movie.filmtvRating;
+            }
+            console.log(`✓ Found on TMDB: ${movie.title}${movie.filmtvRating ? ` (FilmTV: ${movie.filmtvRating})` : ''}`);
           } else {
             console.log(`✗ Not found on TMDB: ${movie.title}`);
           }
@@ -234,6 +308,7 @@ async function getBestOfYear(year) {
 
       // Cache the processed catalog
       catalogCache.set(cacheKey, { data: results, timestamp: now });
+      saveCatalogCache(); // Save to disk
       console.log(`✅ Cached catalog for ${year} (${results.length} movies)`);
 
       return results;
