@@ -164,7 +164,7 @@ async function getMovieWithIMDB(tmdbId) {
   }
 }
 
-async function searchMovieOnTMDB(title, year) {
+async function searchMovieOnTMDB(title, year, filmtvRating = null) {
   try {
     // Search for the movie on TMDB by title and year
     const searchResults = await fetchFromTMDB('/search/movie', {
@@ -183,7 +183,14 @@ async function searchMovieOnTMDB(title, year) {
 
     // Fetch full movie details including IMDB ID
     const fullMovie = await getMovieWithIMDB(tmdbId);
-    return fullMovie ? convertTMDBToStremio(fullMovie) : null;
+    if (!fullMovie) return null;
+
+    // Attach FilmTV rating before conversion
+    if (filmtvRating) {
+      fullMovie.filmtvRating = filmtvRating;
+    }
+
+    return convertTMDBToStremio(fullMovie);
   } catch (error) {
     console.error(`Error searching TMDB for ${title}:`, error.message);
     return null;
@@ -290,12 +297,8 @@ async function getBestOfYear(year) {
       // Step 2: For each movie, search TMDB to get IMDB ID and metadata
       const moviesWithDetails = await Promise.all(
         filmtvMovies.map(async (movie) => {
-          const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year);
+          const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
           if (tmdbMovie) {
-            // Add FilmTV rating to the movie object
-            if (movie.filmtvRating) {
-              tmdbMovie.filmtvRating = movie.filmtvRating;
-            }
             console.log(`✓ Found on TMDB: ${movie.title}${movie.filmtvRating ? ` (FilmTV: ${movie.filmtvRating})` : ''}`);
           } else {
             console.log(`✗ Not found on TMDB: ${movie.title}`);
