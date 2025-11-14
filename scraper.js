@@ -7,9 +7,14 @@ const path = require('path');
 const FILMTV_BASE_URL = 'https://www.filmtv.it';
 
 // TMDB API configuration
-const TMDB_API_KEY = process.env.TMDB_API_KEY || 'YOUR_TMDB_API_KEY_HERE';
+let TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+
+// Function to set TMDB API key from user config
+function setTMDBApiKey(apiKey) {
+  TMDB_API_KEY = apiKey;
+}
 
 // Cache to avoid repeated requests
 const cache = new Map();
@@ -365,5 +370,6 @@ async function getAllLists() {
 
 module.exports = {
   getBestOfYear,
-  getAllLists
+  getAllLists,
+  setTMDBApiKey
 };

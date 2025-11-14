@@ -1,42 +1,64 @@
 const { addonBuilder } = require('stremio-addon-sdk');
-const { getBestOfYear, getAllLists } = require('./scraper');
+const { getBestOfYear, getAllLists, setTMDBApiKey } = require('./scraper');
 
 // Define the addon manifest
 const manifest = {
   id: 'community.filmtv.it',
-  version: '1.0.0',
-  name: 'FilmTV.it Lists',
-  description: 'Browse curated movie lists from FilmTV.it including best movies by year',
+  version: '1.1.0',
+  name: 'FilmTV.it - I Migliori Film',
+  description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno',
   resources: ['catalog', 'meta'],
   types: ['movie'],
   catalogs: [
     {
       type: 'movie',
       id: 'filmtv-best-2025',
-      name: 'FilmTV.it - Best of 2025',
+      name: 'FilmTV.it - Migliori del 2025',
       extra: [{ name: 'skip', isRequired: false }]
     },
     {
       type: 'movie',
       id: 'filmtv-best-2024',
-      name: 'FilmTV.it - Best of 2024',
+      name: 'FilmTV.it - Migliori del 2024',
       extra: [{ name: 'skip', isRequired: false }]
     },
     {
       type: 'movie',
       id: 'filmtv-best-2023',
-      name: 'FilmTV.it - Best of 2023',
+      name: 'FilmTV.it - Migliori del 2023',
       extra: [{ name: 'skip', isRequired: false }]
     }
   ],
-  idPrefixes: ['filmtv_']
+  idPrefixes: ['filmtv_'],
+  // User configuration
+  config: [
+    {
+      key: 'tmdb_api_key',
+      type: 'text',
+      title: 'Chiave API TMDB',
+      required: true,
+      default: ''
+    }
+  ],
+  behaviorHints: {
+    configurable: true,
+    configurationRequired: true
+  }
 };
 
 const builder = new addonBuilder(manifest);
 
 // Catalog handler
-builder.defineCatalogHandler(async ({ type, id, extra }) => {
+builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   if (type !== 'movie') {
+    return { metas: [] };
+  }
+
+  // Set the TMDB API key from user configuration
+  if (config && config.tmdb_api_key) {
+    setTMDBApiKey(config.tmdb_api_key);
+  } else if (!process.env.TMDB_API_KEY) {
+    // If no config and no env var, return error
     return { metas: [] };
   }
 
