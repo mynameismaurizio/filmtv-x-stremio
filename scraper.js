@@ -193,7 +193,7 @@ async function getBestOfYear(year) {
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (now - timestamp < CACHE_DURATION) {
-      console.log(`✓ Using cached catalog for ${year}`);
+      // Cache hit - return silently (no log spam)
       return data;
     }
   }

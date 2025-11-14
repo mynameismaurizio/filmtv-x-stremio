@@ -36,8 +36,6 @@ const builder = new addonBuilder(manifest);
 
 // Catalog handler
 builder.defineCatalogHandler(async ({ type, id, extra }) => {
-  console.log(`Catalog request: type=${type}, id=${id}`);
-
   if (type !== 'movie') {
     return { metas: [] };
   }
@@ -59,9 +57,7 @@ builder.defineCatalogHandler(async ({ type, id, extra }) => {
 
   try {
     const movies = await getBestOfYear(year);
-    console.log(`Found ${movies.length} movies for ${year}`);
-
-    // Movies are already in Stremio format from TMDB scraper
+    // Silently return cached results (logging happens in scraper.js only for fresh fetches)
     return { metas: movies };
   } catch (error) {
     console.error('Error in catalog handler:', error);
@@ -71,8 +67,6 @@ builder.defineCatalogHandler(async ({ type, id, extra }) => {
 
 // Meta handler (optional but provides better detail view)
 builder.defineMetaHandler(async ({ type, id }) => {
-  console.log(`Meta request: type=${type}, id=${id}`);
-
   if (type !== 'movie' || !id.startsWith('tt')) {
     return { meta: null };
   }
