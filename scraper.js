@@ -115,19 +115,27 @@ function convertTMDBToStremio(tmdbMovie) {
   // We'll fetch the IMDB ID separately if needed
   const imdbId = tmdbMovie.imdb_id || `tt${tmdbMovie.id}`;
 
-  // Build description with all ratings
+  // Helper function to convert rating to stars
+  function ratingToStars(rating) {
+    const numStars = Math.round(rating / 2); // Convert 0-10 to 0-5 stars
+    return '⭐'.repeat(numStars);
+  }
+
+  // Build description with all ratings (all from FilmTV)
   let description = '';
 
-  // Add ratings section
+  // Add ratings section - all using FilmTV rating
   const ratings = [];
-  if (tmdbMovie.vote_average) {
-    ratings.push(`Voto medio: ${tmdbMovie.vote_average.toFixed(1)}/10`);
-  }
   if (tmdbMovie.filmtvRating) {
-    ratings.push(`Voto critica (FilmTV.it): ${tmdbMovie.filmtvRating}/10`);
-  }
-  if (tmdbMovie.vote_average) {
-    ratings.push(`Voto pubblico (TMDB): ${tmdbMovie.vote_average.toFixed(1)}/10`);
+    // Voto medio: just the number
+    ratings.push(`Voto medio: ${tmdbMovie.filmtvRating}/10`);
+
+    // Voto critica: stars with number in parentheses
+    const stars = ratingToStars(tmdbMovie.filmtvRating);
+    ratings.push(`Voto critica: ${stars} (${tmdbMovie.filmtvRating})`);
+
+    // Voto pubblico: stars with number in parentheses
+    ratings.push(`Voto pubblico: ${stars} (${tmdbMovie.filmtvRating})`);
   }
 
   if (ratings.length > 0) {
@@ -271,7 +279,7 @@ async function scrapeFilmTVList(year) {
     });
 
     console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
-    return movies.slice(0, 30); // Limit to 30 movies
+    return movies; // Return all scraped movies
   } catch (error) {
     console.error(`Error scraping FilmTV.it for ${year}:`, error.message);
     return [];
