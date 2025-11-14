@@ -54,6 +54,7 @@ function buildManifest(config = {}) {
     version: '1.2.0',
     name: 'FilmTV.it - I Migliori Film',
     description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno e filtri personalizzati',
+    logo: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png',
     resources: ['catalog', 'meta'],
     types: ['movie'],
     catalogs: catalogs,
