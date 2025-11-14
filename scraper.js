@@ -115,11 +115,27 @@ function convertTMDBToStremio(tmdbMovie) {
   // We'll fetch the IMDB ID separately if needed
   const imdbId = tmdbMovie.imdb_id || `tt${tmdbMovie.id}`;
 
-  // Build description with FilmTV rating if available
-  let description = tmdbMovie.overview || '';
-  if (tmdbMovie.filmtvRating) {
-    description = `⭐ FilmTV.it: ${tmdbMovie.filmtvRating}/10\n\n${description}`;
+  // Build description with all ratings
+  let description = '';
+
+  // Add ratings section
+  const ratings = [];
+  if (tmdbMovie.vote_average) {
+    ratings.push(`Voto medio: ${tmdbMovie.vote_average.toFixed(1)}/10`);
   }
+  if (tmdbMovie.filmtvRating) {
+    ratings.push(`Voto critica (FilmTV.it): ${tmdbMovie.filmtvRating}/10`);
+  }
+  if (tmdbMovie.vote_average) {
+    ratings.push(`Voto pubblico (TMDB): ${tmdbMovie.vote_average.toFixed(1)}/10`);
+  }
+
+  if (ratings.length > 0) {
+    description = ratings.join('\n') + '\n\n';
+  }
+
+  // Add movie overview
+  description += tmdbMovie.overview || '';
 
   const stremioMovie = {
     id: imdbId,
@@ -128,7 +144,7 @@ function convertTMDBToStremio(tmdbMovie) {
     poster: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}` : null,
     posterShape: 'poster',
     background: tmdbMovie.backdrop_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.backdrop_path}` : null,
-    // Don't set logo - let MetaHub provide the title logo
+    logo: `https://images.metahub.space/logo/medium/${imdbId}/img`,
     description: description,
     releaseInfo: tmdbMovie.release_date ? tmdbMovie.release_date.split('-')[0] : null,
     imdbRating: tmdbMovie.vote_average ? tmdbMovie.vote_average.toFixed(1) : null,
