@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione FilmTV.it Addon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 35px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 400;
+        }
+
+        .custom-catalog-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .custom-catalog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .custom-catalog-title {
+            font-weight: 600;
+            color: #444;
+        }
+
+        .remove-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .remove-btn:hover {
+            background: #dc2626;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        .add-btn:hover {
+            background: #059669;
+        }
+
+        .save-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        .save-btn:hover {
+            background: #5568d3;
+        }
+
+        .config-output {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            display: none;
+            word-break: break-all;
+        }
+
+        .config-output.show {
+            display: block;
+        }
+
+        .copy-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #2563eb;
+        }
+
+        .catalog-name-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .catalog-name-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Configurazione FilmTV.it Addon</h1>
+        <p class="subtitle">Personalizza i tuoi cataloghi per Stremio</p>
+
+        <!-- TMDB API Key -->
+        <div class="section">
+            <div class="section-title">🔑 Chiave API TMDB</div>
+            <div class="input-group">
+                <label for="tmdb-key">Inserisci la tua chiave API di TMDB (obbligatorio)</label>
+                <input type="text" id="tmdb-key" placeholder="Inserisci la tua TMDB API Key">
+            </div>
+        </div>
+
+        <!-- Predefined Catalogs -->
+        <div class="section">
+            <div class="section-title">📚 Cataloghi Predefiniti</div>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2025" value="2025" checked>
+                    <label for="cat-2025">Migliori del 2025</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2024" value="2024" checked>
+                    <label for="cat-2024">Migliori del 2024</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2023" value="2023" checked>
+                    <label for="cat-2023">Migliori del 2023</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2022" value="2022" checked>
+                    <label for="cat-2022">Migliori del 2022</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2021" value="2021" checked>
+                    <label for="cat-2021">Migliori del 2021</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cat-2020" value="2020" checked>
+                    <label for="cat-2020">Migliori del 2020</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Catalogs -->
+        <div class="section">
+            <div class="section-title">✨ Cataloghi Personalizzati</div>
+            <div id="custom-catalogs-container"></div>
+            <button class="add-btn" onclick="addCustomCatalog()">
+                <span>➕</span>
+                <span>Aggiungi Catalogo Personalizzato</span>
+            </button>
+        </div>
+
+        <!-- Save Button -->
+        <button class="save-btn" onclick="generateConfig()">💾 Salva Configurazione</button>
+
+        <!-- Config Output -->
+        <div id="config-output" class="config-output">
+            <div id="config-text"></div>
+            <button class="copy-btn" onclick="copyConfig()">📋 Copia</button>
+        </div>
+    </div>
+
+    <script>
+        let catalogCounter = 0;
+
+        const filterOptions = {
+            anno: [
+                { value: '', label: '-- Seleziona Anno --' },
+                { value: 'anno-2025', label: '2025' },
+                { value: 'anno-2024', label: '2024' },
+                { value: 'anno-2023', label: '2023' },
+                { value: 'anno-2022', label: '2022' },
+                { value: 'anno-2021', label: '2021' },
+                { value: 'anno-2020', label: '2020' },
+                { value: 'anno-2019', label: '2019' },
+                { value: 'anno-2018', label: '2018' },
+                { value: 'anni-2010', label: 'Anni 2010' },
+                { value: 'anni-2000', label: 'Anni 2000' }
+            ],
+            genere: [
+                { value: '', label: '-- Seleziona Genere --' },
+                { value: 'genere-azione', label: 'Azione' },
+                { value: 'genere-commedia', label: 'Commedia' },
+                { value: 'genere-drammatico', label: 'Drammatico' },
+                { value: 'genere-horror', label: 'Horror' },
+                { value: 'genere-fantascienza', label: 'Fantascienza' },
+                { value: 'genere-thriller', label: 'Thriller' },
+                { value: 'genere-animazione', label: 'Animazione' },
+                { value: 'genere-documentario', label: 'Documentario' },
+                { value: 'genere-romantico', label: 'Romantico' },
+                { value: 'genere-avventura', label: 'Avventura' },
+                { value: 'genere-fantasy', label: 'Fantasy' },
+                { value: 'genere-guerra', label: 'Guerra' }
+            ],
+            paese: [
+                { value: '', label: '-- Seleziona Paese --' },
+                { value: 'paese-usa', label: 'USA' },
+                { value: 'paese-italia', label: 'Italia' },
+                { value: 'paese-francia', label: 'Francia' },
+                { value: 'paese-uk', label: 'Regno Unito' },
+                { value: 'paese-giappone', label: 'Giappone' },
+                { value: 'paese-spagna', label: 'Spagna' },
+                { value: 'paese-germania', label: 'Germania' },
+                { value: 'paese-corea-del-sud', label: 'Corea del Sud' },
+                { value: 'paese-canada', label: 'Canada' },
+                { value: 'paese-australia', label: 'Australia' }
+            ]
+        };
+
+        function createSelect(type, id) {
+            const select = document.createElement('select');
+            select.id = id;
+            filterOptions[type].forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.value;
+                opt.textContent = option.label;
+                select.appendChild(opt);
+            });
+            return select;
+        }
+
+        function addCustomCatalog() {
+            catalogCounter++;
+            const container = document.getElementById('custom-catalogs-container');
+
+            const catalogDiv = document.createElement('div');
+            catalogDiv.className = 'custom-catalog-item';
+            catalogDiv.id = `custom-catalog-${catalogCounter}`;
+
+            catalogDiv.innerHTML = `
+                <div class="custom-catalog-header">
+                    <span class="custom-catalog-title">Catalogo Personalizzato #${catalogCounter}</span>
+                    <button class="remove-btn" onclick="removeCatalog(${catalogCounter})">Rimuovi</button>
+                </div>
+                <input type="text"
+                       class="catalog-name-input"
+                       id="catalog-name-${catalogCounter}"
+                       placeholder="Nome del catalogo (es. 'Film Azione 2024')">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Anno</label>
+                        <div id="select-anno-${catalogCounter}"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Genere</label>
+                        <div id="select-genere-${catalogCounter}"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Paese</label>
+                        <div id="select-paese-${catalogCounter}"></div>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(catalogDiv);
+
+            // Add the select elements
+            document.getElementById(`select-anno-${catalogCounter}`).appendChild(
+                createSelect('anno', `anno-${catalogCounter}`)
+            );
+            document.getElementById(`select-genere-${catalogCounter}`).appendChild(
+                createSelect('genere', `genere-${catalogCounter}`)
+            );
+            document.getElementById(`select-paese-${catalogCounter}`).appendChild(
+                createSelect('paese', `paese-${catalogCounter}`)
+            );
+        }
+
+        function removeCatalog(id) {
+            const catalog = document.getElementById(`custom-catalog-${id}`);
+            if (catalog) {
+                catalog.remove();
+            }
+        }
+
+        function generateConfig() {
+            // Get TMDB API Key
+            const tmdbKey = document.getElementById('tmdb-key').value.trim();
+
+            if (!tmdbKey) {
+                alert('La chiave API TMDB è obbligatoria!');
+                return;
+            }
+
+            // Get selected predefined catalogs
+            const predefinedCatalogs = [];
+            ['2025', '2024', '2023', '2022', '2021', '2020'].forEach(year => {
+                const checkbox = document.getElementById(`cat-${year}`);
+                if (checkbox && checkbox.checked) {
+                    predefinedCatalogs.push(year);
+                }
+            });
+
+            // Get custom catalogs
+            const customCatalogs = [];
+            const customCatalogDivs = document.querySelectorAll('.custom-catalog-item');
+
+            customCatalogDivs.forEach(div => {
+                const id = div.id.replace('custom-catalog-', '');
+                const name = document.getElementById(`catalog-name-${id}`).value.trim();
+                const anno = document.getElementById(`anno-${id}`).value;
+                const genere = document.getElementById(`genere-${id}`).value;
+                const paese = document.getElementById(`paese-${id}`).value;
+
+                if (name) {
+                    const filters = [anno, genere, paese].filter(f => f).join('|');
+                    if (filters) {
+                        customCatalogs.push(`${name}|${filters}`);
+                    }
+                }
+            });
+
+            // Generate configuration URL
+            const config = {
+                tmdb_api_key: tmdbKey,
+                predefined_catalogs: predefinedCatalogs.join(','),
+                custom_catalogs: customCatalogs.join(';')
+            };
+
+            const configParams = new URLSearchParams(config).toString();
+            const manifestUrl = `http://localhost:7001/${configParams}/manifest.json`;
+
+            // Display the configuration
+            document.getElementById('config-text').innerHTML = `
+                <strong>URL Manifest da installare in Stremio:</strong><br><br>
+                ${manifestUrl}
+                <br><br>
+                <strong>Configurazione:</strong><br>
+                TMDB API Key: ${tmdbKey}<br>
+                Cataloghi Predefiniti: ${predefinedCatalogs.join(', ') || 'Nessuno'}<br>
+                Cataloghi Personalizzati: ${customCatalogs.length > 0 ? customCatalogs.join('; ') : 'Nessuno'}
+            `;
+            document.getElementById('config-output').classList.add('show');
+
+            // Scroll to output
+            document.getElementById('config-output').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyConfig() {
+            const configText = document.getElementById('config-text').textContent;
+            navigator.clipboard.writeText(configText).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copiato!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        // Add one custom catalog by default as an example
+        window.addEventListener('load', () => {
+            addCustomCatalog();
+        });
+    </script>
+</body>
+</html>

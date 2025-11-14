@@ -1,47 +1,36 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper');
 
+// Available predefined catalogs
+const PREDEFINED_CATALOGS = [
+  { year: 2025, id: 'filmtv-best-2025', name: 'FilmTV.it - Migliori del 2025' },
+  { year: 2024, id: 'filmtv-best-2024', name: 'FilmTV.it - Migliori del 2024' },
+  { year: 2023, id: 'filmtv-best-2023', name: 'FilmTV.it - Migliori del 2023' },
+  { year: 2022, id: 'filmtv-best-2022', name: 'FilmTV.it - Migliori del 2022' },
+  { year: 2021, id: 'filmtv-best-2021', name: 'FilmTV.it - Migliori del 2021' },
+  { year: 2020, id: 'filmtv-best-2020', name: 'FilmTV.it - Migliori del 2020' }
+];
+
 // Function to build manifest with user configuration
 function buildManifest(config = {}) {
-  const catalogs = [
-    // Default popular catalogs
-    {
-      type: 'movie',
-      id: 'filmtv-best-2025',
-      name: 'FilmTV.it - Migliori del 2025',
-      extra: [{ name: 'skip', isRequired: false }]
-    },
-    {
-      type: 'movie',
-      id: 'filmtv-best-2024',
-      name: 'FilmTV.it - Migliori del 2024',
-      extra: [{ name: 'skip', isRequired: false }]
-    },
-    {
-      type: 'movie',
-      id: 'filmtv-best-2023',
-      name: 'FilmTV.it - Migliori del 2023',
-      extra: [{ name: 'skip', isRequired: false }]
-    },
-    {
-      type: 'movie',
-      id: 'filmtv-best-2022',
-      name: 'FilmTV.it - Migliori del 2022',
-      extra: [{ name: 'skip', isRequired: false }]
-    },
-    {
-      type: 'movie',
-      id: 'filmtv-best-2021',
-      name: 'FilmTV.it - Migliori del 2021',
-      extra: [{ name: 'skip', isRequired: false }]
-    },
-    {
-      type: 'movie',
-      id: 'filmtv-best-2020',
-      name: 'FilmTV.it - Migliori del 2020',
-      extra: [{ name: 'skip', isRequired: false }]
+  const catalogs = [];
+
+  // Parse selected predefined catalogs (default: all enabled)
+  const selectedYears = config.predefined_catalogs
+    ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
+    : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
+
+  // Add selected predefined catalogs
+  PREDEFINED_CATALOGS.forEach(catalog => {
+    if (selectedYears.includes(catalog.year)) {
+      catalogs.push({
+        type: 'movie',
+        id: catalog.id,
+        name: catalog.name,
+        extra: [{ name: 'skip', isRequired: false }]
+      });
     }
-  ];
+  });
 
   // Add custom catalogs based on user configuration
   if (config.custom_catalogs) {
@@ -69,25 +58,82 @@ function buildManifest(config = {}) {
         default: ''
       },
       {
+        key: 'predefined_catalogs',
+        type: 'text',
+        title: '📚 Cataloghi Predefiniti (Selezionati)',
+        required: false,
+        default: '2025,2024,2023,2022,2021,2020',
+        options: [
+          '✅ TUTTI I CATALOGHI SONO GIÀ SELEZIONATI',
+          '',
+          'Per DISABILITARE un catalogo, rimuovi il suo anno dalla lista.',
+          '',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '🎬 Cataloghi disponibili:',
+          '  ☑️  2025 - Migliori del 2025',
+          '  ☑️  2024 - Migliori del 2024',
+          '  ☑️  2023 - Migliori del 2023',
+          '  ☑️  2022 - Migliori del 2022',
+          '  ☑️  2021 - Migliori del 2021',
+          '  ☑️  2020 - Migliori del 2020',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '',
+          '💡 Esempi:',
+          '  • Tutti: 2025,2024,2023,2022,2021,2020',
+          '  • Solo ultimi 3 anni: 2025,2024,2023',
+          '  • Solo 2024 e 2022: 2024,2022',
+          '  • Nessuno: (lascia vuoto)'
+        ].join('\n')
+      },
+      {
         key: 'custom_catalogs',
         type: 'text',
-        title: 'Cataloghi Personalizzati (opzionale)',
+        title: '✨ Cataloghi Personalizzati',
         required: false,
         default: '',
         options: [
-          'Esempi:',
-          'Azione 2019|anno-2019|genere-azione',
-          'Horror Italiani|genere-horror|paese-italia',
+          '➕ AGGIUNGI I TUOI CATALOGHI PERSONALIZZATI',
           '',
-          'Formato: Nome|filtro1|filtro2;',
-          'Separa più cataloghi con ";"',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '📝 Formato: Nome Catalogo|filtro-1|filtro-2',
+          '   Separa più cataloghi con ";"',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
           '',
-          'Filtri disponibili:',
-          'Anno: anno-2024, anno-2023, anni-2010',
-          'Genere: genere-azione, genere-commedia, genere-horror',
-          'Paese: paese-usa, paese-italia, paese-francia',
+          '🎯 ESEMPI PRONTI (copia e incolla):',
           '',
-          'Guida completa: CATALOGHI_PERSONALIZZATI.md'
+          '  Film Azione 2024|anno-2024|genere-azione',
+          '  Horror Italiani|genere-horror|paese-italia',
+          '  Commedie Francesi|genere-commedia|paese-francia',
+          '  Fantascienza Anni 2010|genere-fantascienza|anni-2010',
+          '  Thriller USA|genere-thriller|paese-usa',
+          '',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '🔍 FILTRI DISPONIBILI:',
+          '',
+          '📅 Anno:',
+          '  anno-2024, anno-2023, anno-2022, anno-2021, anno-2020',
+          '  anno-2019, anno-2018, anni-2010, anni-2000',
+          '',
+          '🎬 Genere:',
+          '  genere-azione, genere-commedia, genere-drammatico',
+          '  genere-horror, genere-fantascienza, genere-thriller',
+          '  genere-animazione, genere-documentario, genere-romantico',
+          '  genere-avventura, genere-fantasy, genere-guerra',
+          '',
+          '🌍 Paese:',
+          '  paese-usa, paese-italia, paese-francia, paese-uk',
+          '  paese-giappone, paese-spagna, paese-germania',
+          '  paese-corea-del-sud, paese-canada, paese-australia',
+          '',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '💡 Per creare PIÙ cataloghi:',
+          '',
+          '  Azione 2024|anno-2024|genere-azione;',
+          '  Horror Italia|genere-horror|paese-italia;',
+          '  Commedie Francesi|genere-commedia|paese-francia',
+          '',
+          '  (nota il ";" tra i cataloghi)',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         ].join('\n')
       }
     ],
