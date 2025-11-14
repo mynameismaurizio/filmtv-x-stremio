@@ -98,7 +98,10 @@ if (require.main === module) {
   const addonInterface = builder.getInterface();
   const { serveHTTP } = require('stremio-addon-sdk');
 
-  serveHTTP(addonInterface, { port: PORT }).then(() => {
+  serveHTTP(addonInterface, {
+    port: PORT,
+    cacheMaxAge: 3600 // Cache responses for 1 hour (in seconds)
+  }).then(() => {
     console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
     console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
   }).catch(err => {
