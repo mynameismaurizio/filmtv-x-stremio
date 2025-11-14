@@ -15,6 +15,8 @@ const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 // Catalog cache to avoid re-processing
 const catalogCache = new Map();
+// In-flight promises to prevent duplicate concurrent requests
+const inFlightPromises = new Map();
 
 async function fetchWithCache(url) {
   const now = Date.now();
@@ -184,51 +186,70 @@ async function scrapeFilmTVList(year) {
 }
 
 async function getBestOfYear(year) {
-  // Check catalog cache first
   const cacheKey = `catalog_${year}`;
   const now = Date.now();
 
+  // Check catalog cache first
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (now - timestamp < CACHE_DURATION) {
-      console.log(`Using cached catalog for ${year}`);
+      console.log(`✓ Using cached catalog for ${year}`);
       return data;
     }
   }
 
-  try {
-    // Step 1: Scrape movie titles from FilmTV.it
-    const filmtvMovies = await scrapeFilmTVList(year);
-
-    if (filmtvMovies.length === 0) {
-      console.log(`No movies found on FilmTV.it for ${year}`);
-      return [];
-    }
-
-    // Step 2: For each movie, search TMDB to get IMDB ID and metadata
-    const moviesWithDetails = await Promise.all(
-      filmtvMovies.map(async (movie) => {
-        const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year);
-        if (tmdbMovie) {
-          console.log(`✓ Found on TMDB: ${movie.title}`);
-        } else {
-          console.log(`✗ Not found on TMDB: ${movie.title}`);
-        }
-        return tmdbMovie;
-      })
-    );
-
-    const results = moviesWithDetails.filter(m => m !== null);
-
-    // Cache the processed catalog
-    catalogCache.set(cacheKey, { data: results, timestamp: now });
-    console.log(`Cached catalog for ${year} (${results.length} movies)`);
-
-    return results;
-  } catch (error) {
-    console.error('Error fetching best of year:', error.message);
-    return [];
+  // Check if there's already a request in flight for this year
+  if (inFlightPromises.has(cacheKey)) {
+    console.log(`⏳ Waiting for in-flight request for ${year}`);
+    return inFlightPromises.get(cacheKey);
   }
+
+  // Create a new promise for this request
+  const promise = (async () => {
+    try {
+      console.log(`🔄 Fetching fresh catalog for ${year}`);
+
+      // Step 1: Scrape movie titles from FilmTV.it
+      const filmtvMovies = await scrapeFilmTVList(year);
+
+      if (filmtvMovies.length === 0) {
+        console.log(`No movies found on FilmTV.it for ${year}`);
+        return [];
+      }
+
+      // Step 2: For each movie, search TMDB to get IMDB ID and metadata
+      const moviesWithDetails = await Promise.all(
+        filmtvMovies.map(async (movie) => {
+          const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year);
+          if (tmdbMovie) {
+            console.log(`✓ Found on TMDB: ${movie.title}`);
+          } else {
+            console.log(`✗ Not found on TMDB: ${movie.title}`);
+          }
+          return tmdbMovie;
+        })
+      );
+
+      const results = moviesWithDetails.filter(m => m !== null);
+
+      // Cache the processed catalog
+      catalogCache.set(cacheKey, { data: results, timestamp: now });
+      console.log(`✅ Cached catalog for ${year} (${results.length} movies)`);
+
+      return results;
+    } catch (error) {
+      console.error('Error fetching best of year:', error.message);
+      return [];
+    } finally {
+      // Remove from in-flight promises when done
+      inFlightPromises.delete(cacheKey);
+    }
+  })();
+
+  // Store the promise so concurrent requests can wait for it
+  inFlightPromises.set(cacheKey, promise);
+
+  return promise;
 }
 
 async function getAllLists() {
