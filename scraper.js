@@ -291,6 +291,123 @@ async function scrapeFilmTVList(year) {
   }
 }
 
+// Function to get filtered list from FilmTV
+async function getFilteredList(filters) {
+  const cacheKey = `catalog_${filters}`;
+  const now = Date.now();
+
+  // Check catalog cache first
+  if (catalogCache.has(cacheKey)) {
+    const { data, timestamp } = catalogCache.get(cacheKey);
+    if (now - timestamp < CACHE_DURATION) {
+      return data;
+    }
+  }
+
+  // Check if there's already a request in flight
+  if (inFlightPromises.has(cacheKey)) {
+    console.log(`⏳ Waiting for in-flight request for ${filters}`);
+    return inFlightPromises.get(cacheKey);
+  }
+
+  // Create a new promise for this request
+  const promise = (async () => {
+    try {
+      console.log(`🔄 Fetching fresh catalog for filters: ${filters}`);
+
+      // Build FilmTV URL with filters
+      const url = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
+
+      const html = await fetchWithCache(url);
+      const $ = cheerio.load(html);
+
+      const movies = [];
+      const seen = new Set();
+
+      // Find all numbered movie entries
+      $('h3, h2, h4').each((_, elem) => {
+        const text = $(elem).text().trim();
+        const match = text.match(/^(\d+)\.\s*(.+?)$/);
+
+        if (match) {
+          let title = match[2].trim();
+          title = title.split('\n')[0].split('\t')[0].trim();
+
+          if (title.length < 3 ||
+              title.includes('La recensione') ||
+              title.includes('Uscito in Italia') ||
+              title.includes('Uscita in Italia') ||
+              title.includes('streaming') ||
+              title.includes('migliori') ||
+              seen.has(title)) {
+            return;
+          }
+
+          // Try to find FilmTV rating
+          let filmtvRating = null;
+          const article = $(elem).closest('article');
+          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+          if (ratingSpan.length > 0) {
+            const ratingText = ratingSpan.text().trim();
+            const rating = parseFloat(ratingText);
+            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+              filmtvRating = rating;
+            }
+          }
+
+          seen.add(title);
+          // Try to extract year from filters or default to current year
+          const yearMatch = filters.match(/anno-(\d{4})/);
+          const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+          movies.push({
+            title: title,
+            year: year,
+            filmtvRating: filmtvRating
+          });
+        }
+      });
+
+      console.log(`Scraped ${movies.length} movies from FilmTV.it for filters: ${filters}`);
+
+      if (movies.length === 0) {
+        console.log(`No movies found for filters: ${filters}`);
+        return [];
+      }
+
+      // Get TMDB details for each movie
+      const moviesWithDetails = await Promise.all(
+        movies.map(async (movie) => {
+          const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+          if (tmdbMovie) {
+            console.log(`✓ Found on TMDB: ${movie.title}${movie.filmtvRating ? ` (FilmTV: ${movie.filmtvRating})` : ''}`);
+          } else {
+            console.log(`✗ Not found on TMDB: ${movie.title}`);
+          }
+          return tmdbMovie;
+        })
+      );
+
+      const results = moviesWithDetails.filter(m => m !== null);
+
+      // Cache the processed catalog
+      catalogCache.set(cacheKey, { data: results, timestamp: now });
+      saveCatalogCache();
+      console.log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
+
+      return results;
+    } catch (error) {
+      console.error('Error fetching filtered list:', error.message);
+      return [];
+    } finally {
+      inFlightPromises.delete(cacheKey);
+    }
+  })();
+
+  inFlightPromises.set(cacheKey, promise);
+  return promise;
+}
+
 async function getBestOfYear(year) {
   const cacheKey = `catalog_${year}`;
   const now = Date.now();
@@ -370,6 +487,7 @@ async function getAllLists() {
 
 module.exports = {
   getBestOfYear,
+  getFilteredList,
   getAllLists,
   setTMDBApiKey
 };
