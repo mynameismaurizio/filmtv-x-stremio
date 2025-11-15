@@ -53,9 +53,23 @@ function buildManifest(config = {}) {
       {
         key: 'tmdb_api_key',
         type: 'text',
-        title: 'Chiave API TMDB',
+        title: '🔑 Chiave API TMDB (OBBLIGATORIA)',
         required: true,
-        default: ''
+        default: '',
+        options: [
+          '',
+          '⚠️  QUESTA CHIAVE È OBBLIGATORIA!',
+          '',
+          '📝 Come ottenere la tua chiave TMDB:',
+          '1. Vai su https://www.themoviedb.org',
+          '2. Crea un account gratuito',
+          '3. Vai su Impostazioni → API',
+          '4. Richiedi una chiave API',
+          '5. Copia la chiave da "API Key (v3 auth)"',
+          '',
+          '✅ La chiave deve essere 32 caratteri esadecimali',
+          '❌ Senza questa chiave, l\'addon NON funzionerà'
+        ].join('\n')
       },
       {
         key: 'predefined_catalogs',
@@ -139,7 +153,7 @@ function buildManifest(config = {}) {
     ],
     behaviorHints: {
       configurable: true,
-      configurationRequired: false
+      configurationRequired: true
     }
   };
 }
