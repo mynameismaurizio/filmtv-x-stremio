@@ -245,19 +245,48 @@
             display: block;
         }
 
-        .copy-btn {
-            background: #3b82f6;
+        .localhost-warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .copy-btn, .install-btn {
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 12px 24px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
-            margin-top: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            flex: 1;
+            transition: all 0.3s;
+        }
+
+        .copy-btn {
+            background: #3b82f6;
         }
 
         .copy-btn:hover {
             background: #2563eb;
+        }
+
+        .install-btn {
+            background: #8b5cf6;
+        }
+
+        .install-btn:hover {
+            background: #7c3aed;
         }
 
         .catalog-name-input {
@@ -335,13 +364,20 @@
 
         <!-- Config Output -->
         <div id="config-output" class="config-output">
+            <div class="localhost-warning">
+                ⚠️ <strong>Nota:</strong> Questo URL funziona solo in locale (localhost). Per utilizzare l'addon da remoto, devi deployare il server su un servizio di hosting.
+            </div>
             <div id="config-text"></div>
-            <button class="copy-btn" onclick="copyConfig()">📋 Copia</button>
+            <div class="button-group">
+                <button class="copy-btn" onclick="copyManifestUrl()">📋 Copia URL</button>
+                <button class="install-btn" onclick="installInStremio()">🎬 Installa in Stremio</button>
+            </div>
         </div>
     </div>
 
     <script>
         let catalogCounter = 0;
+        let currentManifestUrl = '';
 
         const filterOptions = {
             anno: [
@@ -498,13 +534,14 @@
             };
 
             const configParams = new URLSearchParams(config).toString();
-            const manifestUrl = `http://localhost:7001/${configParams}/manifest.json`;
+            currentManifestUrl = `http://localhost:7001/${configParams}/manifest.json`;
 
             // Display the configuration
             document.getElementById('config-text').innerHTML = `
                 <strong>URL Manifest da installare in Stremio:</strong><br><br>
-                ${manifestUrl}
-                <br><br>
+                <div style="background: #374151; padding: 10px; border-radius: 4px; margin: 10px 0; word-break: break-all;">
+                    ${currentManifestUrl}
+                </div>
                 <strong>Configurazione:</strong><br>
                 TMDB API Key: ${tmdbKey}<br>
                 Cataloghi Predefiniti: ${predefinedCatalogs.join(', ') || 'Nessuno'}<br>
@@ -516,16 +553,38 @@
             document.getElementById('config-output').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function copyConfig() {
-            const configText = document.getElementById('config-text').textContent;
-            navigator.clipboard.writeText(configText).then(() => {
+        function copyManifestUrl() {
+            navigator.clipboard.writeText(currentManifestUrl).then(() => {
                 const btn = event.target;
                 const originalText = btn.textContent;
                 btn.textContent = '✓ Copiato!';
                 setTimeout(() => {
                     btn.textContent = originalText;
                 }, 2000);
+            }).catch(err => {
+                alert('Errore durante la copia: ' + err);
             });
+        }
+
+        function installInStremio() {
+            if (!currentManifestUrl) {
+                alert('Genera prima la configurazione cliccando su "Salva"');
+                return;
+            }
+
+            // Create the stremio:// protocol URL
+            const stremioUrl = `stremio://${encodeURIComponent(currentManifestUrl)}`;
+
+            // Try to open in Stremio
+            window.location.href = stremioUrl;
+
+            // Show feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Apertura Stremio...';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 3000);
         }
 
         // Add one custom catalog by default as an example
