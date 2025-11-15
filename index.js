@@ -159,7 +159,9 @@ function parseCustomCatalogs(customConfig) {
 
       const name = parts[0].trim();
       const filters = parts.slice(1).join('/');
-      const id = `filmtv-custom-${filters.replace(/\//g, '-')}`;
+      // Use base64 encoding to preserve filter structure (handles hyphens in filter names)
+      const filtersEncoded = Buffer.from(filters).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      const id = `filmtv-custom-${filtersEncoded}`;
 
       catalogs.push({
         type: 'movie',
@@ -185,16 +187,26 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 
   // Set the TMDB API key from user configuration
   if (config && config.tmdb_api_key) {
+    console.log(`✓ Using TMDB API key from config for catalog ${id}`);
     setTMDBApiKey(config.tmdb_api_key);
-  } else if (!process.env.TMDB_API_KEY) {
+  } else if (process.env.TMDB_API_KEY) {
+    console.log(`✓ Using TMDB API key from environment for catalog ${id}`);
+    setTMDBApiKey(process.env.TMDB_API_KEY);
+  } else {
     // If no config and no env var, return error
+    console.error(`✗ No TMDB API key found for catalog ${id}`);
     return { metas: [] };
   }
 
   try {
     // Handle custom catalogs
     if (id.startsWith('filmtv-custom-')) {
-      const filters = id.replace('filmtv-custom-', '').split('-').join('/');
+      const filtersEncoded = id.replace('filmtv-custom-', '');
+      // Decode base64 filters (reverse the encoding from parseCustomCatalogs)
+      const filtersBase64 = filtersEncoded.replace(/-/g, '+').replace(/_/g, '/');
+      // Add padding if needed
+      const padding = '='.repeat((4 - filtersBase64.length % 4) % 4);
+      const filters = Buffer.from(filtersBase64 + padding, 'base64').toString('utf-8');
       const movies = await getFilteredList(filters);
       return { metas: movies };
     }
@@ -225,9 +237,11 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     }
 
     const movies = await getBestOfYear(year);
+    console.log(`✓ Returning ${movies.length} movies for catalog ${id}`);
     return { metas: movies };
   } catch (error) {
-    console.error('Error in catalog handler:', error);
+    console.error(`✗ Error in catalog handler for ${id}:`, error.message);
+    console.error('Stack trace:', error.stack);
     return { metas: [] };
   }
 });

@@ -117,8 +117,12 @@ function convertTMDBToStremio(tmdbMovie) {
   if (!tmdbMovie) return null;
 
   // TMDB uses numeric IDs, but we need IMDB IDs for Stremio
-  // We'll fetch the IMDB ID separately if needed
-  const imdbId = tmdbMovie.imdb_id || `tt${tmdbMovie.id}`;
+  // Skip movies without valid IMDB IDs (don't create fake ones)
+  const imdbId = tmdbMovie.imdb_id;
+  if (!imdbId || !imdbId.startsWith('tt')) {
+    console.log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title}`);
+    return null;
+  }
 
   // Helper function to convert rating to stars
   function ratingToStars(rating) {

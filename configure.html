@@ -369,8 +369,8 @@
             </div>
             <div id="config-text"></div>
             <div class="button-group">
-                <button class="copy-btn" onclick="copyManifestUrl()">📋 Copia URL</button>
-                <button class="install-btn" onclick="installInStremio()">🎬 Installa in Stremio</button>
+                <button class="copy-btn" onclick="copyManifestUrl(event)">📋 Copia URL</button>
+                <button class="install-btn" onclick="installInStremio(event)">🎬 Installa in Stremio</button>
             </div>
         </div>
     </div>
@@ -498,6 +498,12 @@
                 return;
             }
 
+            // Validate TMDB API key format (32-character hexadecimal)
+            if (!/^[a-f0-9]{32}$/i.test(tmdbKey)) {
+                alert('Chiave API TMDB non valida! Deve essere una stringa di 32 caratteri esadecimali.\n\nOttieni la tua chiave su: https://www.themoviedb.org/settings/api');
+                return;
+            }
+
             // Get selected predefined catalogs
             const predefinedCatalogs = [];
             ['2025', '2024', '2023', '2022', '2021', '2020'].forEach(year => {
@@ -533,10 +539,13 @@
                 custom_catalogs: customCatalogs.join(';')
             };
 
-            const configParams = new URLSearchParams(config).toString();
+            // Convert config to JSON and base64 encode for Stremio SDK
+            const configJson = JSON.stringify(config);
+            const configEncoded = btoa(configJson);
+
             // Get the current URL from the browser (works with both localhost and deployed)
             const baseUrl = window.location.origin;
-            currentManifestUrl = `${baseUrl}/${configParams}/manifest.json`;
+            currentManifestUrl = `${baseUrl}/${configEncoded}/manifest.json`;
 
             // Display the configuration
             document.getElementById('config-text').innerHTML = `
@@ -555,7 +564,7 @@
             document.getElementById('config-output').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function copyManifestUrl() {
+        function copyManifestUrl(event) {
             navigator.clipboard.writeText(currentManifestUrl).then(() => {
                 const btn = event.target;
                 const originalText = btn.textContent;
@@ -568,14 +577,14 @@
             });
         }
 
-        function installInStremio() {
+        function installInStremio(event) {
             if (!currentManifestUrl) {
                 alert('Genera prima la configurazione cliccando su "Salva"');
                 return;
             }
 
-            // Create the stremio:// protocol URL
-            const stremioUrl = `stremio://${encodeURIComponent(currentManifestUrl)}`;
+            // Create the stremio:// protocol URL (no need to encode the whole URL)
+            const stremioUrl = `stremio://${currentManifestUrl}`;
 
             // Try to open in Stremio
             window.location.href = stremioUrl;
