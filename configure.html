@@ -365,7 +365,7 @@
         <!-- Config Output -->
         <div id="config-output" class="config-output">
             <div class="localhost-warning">
-                ⚠️ <strong>Nota:</strong> Questo URL funziona solo in locale (localhost). Per utilizzare l'addon da remoto, devi deployare il server su un servizio di hosting.
+                💡 <strong>Info:</strong> L'URL generato utilizza automaticamente il dominio corrente (sia localhost che il server deployato).
             </div>
             <div id="config-text"></div>
             <div class="button-group">
@@ -534,7 +534,9 @@
             };
 
             const configParams = new URLSearchParams(config).toString();
-            currentManifestUrl = `http://localhost:7001/${configParams}/manifest.json`;
+            // Get the current URL from the browser (works with both localhost and deployed)
+            const baseUrl = window.location.origin;
+            currentManifestUrl = `${baseUrl}/${configParams}/manifest.json`;
 
             // Display the configuration
             document.getElementById('config-text').innerHTML = `
