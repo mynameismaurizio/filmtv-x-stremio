@@ -13,7 +13,10 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-image: url('https://github.com/mynameismaurizio/filmtv-x-stremio/blob/main/locandinesthether.png?raw=true');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             min-height: 100vh;
             padding: 20px;
             display: flex;
@@ -21,6 +24,16 @@
             align-items: center;
         }
 
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
         .container {
             background: white;
             border-radius: 16px;
@@ -264,14 +277,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎬 Configurazione FilmTV.it Addon</h1>
+        <h1>FilmTV.it x Stremio Addon</h1>
         <p class="subtitle">Personalizza i tuoi cataloghi per Stremio</p>
 
         <!-- TMDB API Key -->
         <div class="section">
             <div class="section-title">🔑 Chiave API TMDB</div>
             <div class="input-group">
-                <label for="tmdb-key">Inserisci la tua chiave API di TMDB (obbligatorio)</label>
+                <label for="tmdb-key">Inserisci la tua chiave API di TMDB*</label>
                 <input type="text" id="tmdb-key" placeholder="Inserisci la tua TMDB API Key">
             </div>
         </div>
@@ -318,7 +331,7 @@
         </div>
 
         <!-- Save Button -->
-        <button class="save-btn" onclick="generateConfig()">💾 Salva Configurazione</button>
+        <button class="save-btn" onclick="generateConfig()">Salva</button>
 
         <!-- Config Output -->
         <div id="config-output" class="config-output">

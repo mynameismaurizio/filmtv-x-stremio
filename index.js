@@ -256,17 +256,24 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const addonInterface = builder.getInterface();
-  const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const path = require('path');
+  const { getRouter } = require('stremio-addon-sdk');
 
-  serveHTTP(addonInterface, {
-    port: PORT,
-    cacheMaxAge: 3600 // Cache responses for 1 hour (in seconds)
-  }).then(() => {
+  const app = express();
+
+  // Serve the configuration page
+  app.get('/configure', (req, res) => {
+    res.sendFile(path.join(__dirname, 'configure.html'));
+  });
+
+  // Mount the addon routes
+  const addonInterface = builder.getInterface();
+  app.use(getRouter(addonInterface));
+
+  app.listen(PORT, () => {
     console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
     console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-  }).catch(err => {
-    console.error('Failed to start addon:', err);
-    process.exit(1);
+    console.log(`Configuration page: http://localhost:${PORT}/configure`);
   });
 }
