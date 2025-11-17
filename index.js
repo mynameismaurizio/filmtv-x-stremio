@@ -268,11 +268,11 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 
     if (hasFilters) {
       // Build filter string for getFilteredList
+      // FilmTV format: /migliori/genre/country/anno-YEAR/#
       const filters = [];
-      filters.push(`anno-${year}`);
 
       if (extra.genre) {
-        // Convert Italian genre name to FilmTV filter format
+        // Convert Italian genre name to FilmTV filter format (lowercase, no prefix)
         const genreMap = {
           'Azione': 'azione',
           'Commedia': 'commedia',
@@ -294,11 +294,11 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
           'Giallo': 'giallo'
         };
         const genreFilter = genreMap[extra.genre] || extra.genre.toLowerCase();
-        filters.push(`genere-${genreFilter}`);
+        filters.push(genreFilter);
       }
 
       if (extra.country) {
-        // Convert country name to FilmTV filter format
+        // Convert country name to FilmTV filter format (lowercase, no prefix)
         const countryMap = {
           'Italia': 'italia',
           'USA': 'usa',
@@ -314,8 +314,11 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
           'India': 'india'
         };
         const countryFilter = countryMap[extra.country] || extra.country.toLowerCase().replace(/ /g, '-');
-        filters.push(`paese-${countryFilter}`);
+        filters.push(countryFilter);
       }
+
+      // Year always comes last with "anno-" prefix
+      filters.push(`anno-${year}`);
 
       const filterString = filters.join('/');
       console.log(`✓ Fetching filtered catalog for ${year} with filters: ${filterString}`);
