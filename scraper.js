@@ -303,16 +303,15 @@ async function scrapeFilmTVList(year) {
         const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
 
         console.log(`📡 Fetching page ${page} from: ${paginatedUrl}`);
-        const response = await fetchWithCache(paginatedUrl);
-        console.log(`✓ Got response, length: ${response.length}`);
-        let data;
-        try {
-          data = JSON.parse(response);
-          console.log(`✓ Parsed JSON successfully`);
-        } catch (e) {
-          console.error(`Failed to parse JSON from ${paginatedUrl}: ${e.message}`);
+        const data = await fetchWithCache(paginatedUrl);
+        console.log(`✓ Got response, data type: ${typeof data}`);
+
+        // axios automatically parses JSON responses, so data is already an object
+        if (!data || typeof data !== 'object') {
+          console.error(`Failed to fetch JSON from ${paginatedUrl}: invalid response`);
           continue;
         }
+        console.log(`✓ Got JSON data successfully`);
 
         if (data.html) {
           $ = cheerio.load(data.html);
@@ -468,16 +467,15 @@ async function getFilteredList(filters) {
           const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
 
           console.log(`📡 Fetching page ${page} from: ${paginatedUrl}`);
-          const response = await fetchWithCache(paginatedUrl);
-          console.log(`✓ Got response, length: ${response.length}`);
-          let data;
-          try {
-            data = JSON.parse(response);
-            console.log(`✓ Parsed JSON successfully`);
-          } catch (e) {
-            console.error(`Failed to parse JSON from ${paginatedUrl}: ${e.message}`);
+          const data = await fetchWithCache(paginatedUrl);
+          console.log(`✓ Got response, data type: ${typeof data}`);
+
+          // axios automatically parses JSON responses, so data is already an object
+          if (!data || typeof data !== 'object') {
+            console.error(`Failed to fetch JSON from ${paginatedUrl}: invalid response`);
             continue;
           }
+          console.log(`✓ Got JSON data successfully`);
 
           if (data.html) {
             $ = cheerio.load(data.html);
