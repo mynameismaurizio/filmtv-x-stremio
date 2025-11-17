@@ -231,63 +231,68 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null) {
 }
 
 async function scrapeFilmTVList(year) {
-  const url = `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#`;
+  const movies = [];
+  const seen = new Set();
+  const PAGES_TO_SCRAPE = 2; // Scrape first 2 pages (40 movies)
 
   try {
-    const html = await fetchWithCache(url);
-    const $ = cheerio.load(html);
+    for (let page = 1; page <= PAGES_TO_SCRAPE; page++) {
+      const url = page === 1
+        ? `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#`
+        : `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#film-pagina-${page}`;
 
-    const movies = [];
-    const seen = new Set();
+      const html = await fetchWithCache(url);
+      const $ = cheerio.load(html);
 
-    // Find all numbered movie entries like "1.Movie Title"
-    $('h3, h2, h4').each((_, elem) => {
-      const text = $(elem).text().trim();
+      // Find all numbered movie entries like "1.Movie Title"
+      $('h3, h2, h4').each((_, elem) => {
+        const text = $(elem).text().trim();
 
-      // Match numbered entries like "1.Title" at the start
-      const match = text.match(/^(\d+)\.\s*(.+?)$/);
+        // Match numbered entries like "1.Title" at the start
+        const match = text.match(/^(\d+)\.\s*(.+?)$/);
 
-      if (match) {
-        let title = match[2].trim();
+        if (match) {
+          let title = match[2].trim();
 
-        // Remove everything after newline or tab
-        title = title.split('\n')[0].split('\t')[0].trim();
+          // Remove everything after newline or tab
+          title = title.split('\n')[0].split('\t')[0].trim();
 
-        // Skip if it's not a valid title
-        if (title.length < 3 ||
-            title.includes('La recensione') ||
-            title.includes('Uscito in Italia') ||
-            title.includes('Uscita in Italia') ||
-            title.includes('streaming') ||
-            title.includes('migliori') ||
-            seen.has(title)) {
-          return;
-        }
-
-        // Try to find FilmTV rating in the movie's article container
-        let filmtvRating = null;
-        const article = $(elem).closest('article');
-
-        // Look for rating in footer with data-updcnt attribute
-        const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-        if (ratingSpan.length > 0) {
-          const ratingText = ratingSpan.text().trim();
-          const rating = parseFloat(ratingText);
-          if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-            filmtvRating = rating;
+          // Skip if it's not a valid title
+          if (title.length < 3 ||
+              title.includes('La recensione') ||
+              title.includes('Uscito in Italia') ||
+              title.includes('Uscita in Italia') ||
+              title.includes('streaming') ||
+              title.includes('migliori') ||
+              seen.has(title)) {
+            return;
           }
+
+          // Try to find FilmTV rating in the movie's article container
+          let filmtvRating = null;
+          const article = $(elem).closest('article');
+
+          // Look for rating in footer with data-updcnt attribute
+          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+          if (ratingSpan.length > 0) {
+            const ratingText = ratingSpan.text().trim();
+            const rating = parseFloat(ratingText);
+            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+              filmtvRating = rating;
+            }
+          }
+
+          seen.add(title);
+          movies.push({
+            title: title,
+            year: year,
+            filmtvRating: filmtvRating
+          });
         }
+      });
+    }
 
-        seen.add(title);
-        movies.push({
-          title: title,
-          year: year,
-          filmtvRating: filmtvRating
-        });
-      }
-    });
-
-    console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
+    console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year} (${PAGES_TO_SCRAPE} pages)`);
     return movies; // Return all scraped movies
   } catch (error) {
     console.error(`Error scraping FilmTV.it for ${year}:`, error.message);
@@ -323,60 +328,65 @@ async function getFilteredList(filters) {
     try {
       console.log(`🔄 Fetching fresh catalog for filters: ${filters}`);
 
-      // Build FilmTV URL with filters
-      const url = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
-
-      const html = await fetchWithCache(url);
-      const $ = cheerio.load(html);
-
       const movies = [];
       const seen = new Set();
+      const PAGES_TO_SCRAPE = 2; // Scrape first 2 pages (40 movies)
 
-      // Find all numbered movie entries
-      $('h3, h2, h4').each((_, elem) => {
-        const text = $(elem).text().trim();
-        const match = text.match(/^(\d+)\.\s*(.+?)$/);
+      for (let page = 1; page <= PAGES_TO_SCRAPE; page++) {
+        // Build FilmTV URL with filters and pagination
+        const url = page === 1
+          ? `${FILMTV_BASE_URL}/film/migliori/${filters}/#`
+          : `${FILMTV_BASE_URL}/film/migliori/${filters}/#film-pagina-${page}`;
 
-        if (match) {
-          let title = match[2].trim();
-          title = title.split('\n')[0].split('\t')[0].trim();
+        const html = await fetchWithCache(url);
+        const $ = cheerio.load(html);
 
-          if (title.length < 3 ||
-              title.includes('La recensione') ||
-              title.includes('Uscito in Italia') ||
-              title.includes('Uscita in Italia') ||
-              title.includes('streaming') ||
-              title.includes('migliori') ||
-              seen.has(title)) {
-            return;
-          }
+        // Find all numbered movie entries
+        $('h3, h2, h4').each((_, elem) => {
+          const text = $(elem).text().trim();
+          const match = text.match(/^(\d+)\.\s*(.+?)$/);
 
-          // Try to find FilmTV rating
-          let filmtvRating = null;
-          const article = $(elem).closest('article');
-          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-          if (ratingSpan.length > 0) {
-            const ratingText = ratingSpan.text().trim();
-            const rating = parseFloat(ratingText);
-            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-              filmtvRating = rating;
+          if (match) {
+            let title = match[2].trim();
+            title = title.split('\n')[0].split('\t')[0].trim();
+
+            if (title.length < 3 ||
+                title.includes('La recensione') ||
+                title.includes('Uscito in Italia') ||
+                title.includes('Uscita in Italia') ||
+                title.includes('streaming') ||
+                title.includes('migliori') ||
+                seen.has(title)) {
+              return;
             }
+
+            // Try to find FilmTV rating
+            let filmtvRating = null;
+            const article = $(elem).closest('article');
+            const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+            if (ratingSpan.length > 0) {
+              const ratingText = ratingSpan.text().trim();
+              const rating = parseFloat(ratingText);
+              if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                filmtvRating = rating;
+              }
+            }
+
+            seen.add(title);
+            // Try to extract year from filters or default to current year
+            const yearMatch = filters.match(/anno-(\d{4})/);
+            const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+            movies.push({
+              title: title,
+              year: year,
+              filmtvRating: filmtvRating
+            });
           }
+        });
+      }
 
-          seen.add(title);
-          // Try to extract year from filters or default to current year
-          const yearMatch = filters.match(/anno-(\d{4})/);
-          const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-
-          movies.push({
-            title: title,
-            year: year,
-            filmtvRating: filmtvRating
-          });
-        }
-      });
-
-      console.log(`Scraped ${movies.length} movies from FilmTV.it for filters: ${filters}`);
+      console.log(`Scraped ${movies.length} movies from FilmTV.it for filters: ${filters} (${PAGES_TO_SCRAPE} pages)`);
 
       if (movies.length === 0) {
         console.log(`No movies found for filters: ${filters}`);
