@@ -20,13 +20,16 @@ function buildManifest(config = {}) {
     ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
     : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
 
-  // Genre and country options for separate filters
+  // Genre and country options combined in one dropdown
   const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
                   'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
                   'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
 
   const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
                      'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
+
+  // Combine genres and countries into single filter list
+  const FILTER_OPTIONS = [...GENRES, ...COUNTRIES];
 
   // Add selected predefined catalogs
   PREDEFINED_CATALOGS.forEach(catalog => {
@@ -37,8 +40,7 @@ function buildManifest(config = {}) {
         name: catalog.name,
         extra: [
           { name: 'skip', isRequired: false },
-          { name: 'genre', isRequired: false, options: GENRES },
-          { name: 'country', isRequired: false, options: COUNTRIES }
+          { name: 'genre', isRequired: false, options: FILTER_OPTIONS }
         ]
       });
     }
@@ -52,7 +54,7 @@ function buildManifest(config = {}) {
 
   return {
     id: 'community.filmtv.it',
-    version: '1.2.0',
+    version: '1.3.0',
     name: 'FilmTV.it - I Migliori Film',
     description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno e filtri personalizzati',
     logo: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png',
@@ -263,13 +265,14 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         return { metas: [] };
     }
 
-    // Check if genre or country filter is applied
-    if (extra && (extra.genre || extra.country)) {
+    // Check if genre/country filter is applied
+    if (extra && extra.genre) {
       // Build filter string for getFilteredList
       // FilmTV format: /migliori/{filter}/anno-YEAR/#
 
-      // Genre and country mapping
-      const genreMap = {
+      // Combined genre and country mapping
+      const filterMap = {
+        // Genres
         'Azione': 'azione',
         'Commedia': 'commedia',
         'Drammatico': 'drammatico',
@@ -287,10 +290,8 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         'Musicale': 'musicale',
         'Western': 'western',
         'Noir': 'noir',
-        'Giallo': 'giallo'
-      };
-
-      const countryMap = {
+        'Giallo': 'giallo',
+        // Countries
         'Italia': 'italia',
         'USA': 'usa',
         'Francia': 'francia',
@@ -305,18 +306,10 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         'India': 'india'
       };
 
-      let filter, filterValue;
-      if (extra.genre) {
-        filter = genreMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
-        filterValue = extra.genre;
-      } else {
-        filter = countryMap[extra.country] || extra.country.toLowerCase().replace(/ /g, '-');
-        filterValue = extra.country;
-      }
-
+      const filter = filterMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
       const filterString = `${filter}/anno-${year}`;
 
-      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${filterValue} -> ${filterString}`);
+      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${extra.genre} -> ${filterString}`);
       const movies = await getFilteredList(filterString);
       console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
       return { metas: movies };
