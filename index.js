@@ -20,16 +20,13 @@ function buildManifest(config = {}) {
     ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
     : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
 
-  // Genre and country options for filters (combined into one dropdown)
+  // Genre and country options for separate filters
   const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
                   'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
                   'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
 
   const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
                      'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
-
-  // Combine genres and countries into a single filter list
-  const FILTER_OPTIONS = [...GENRES, ...COUNTRIES];
 
   // Add selected predefined catalogs
   PREDEFINED_CATALOGS.forEach(catalog => {
@@ -40,7 +37,8 @@ function buildManifest(config = {}) {
         name: catalog.name,
         extra: [
           { name: 'skip', isRequired: false },
-          { name: 'filter', isRequired: false, options: FILTER_OPTIONS }
+          { name: 'genre', isRequired: false, options: GENRES },
+          { name: 'country', isRequired: false, options: COUNTRIES }
         ]
       });
     }
@@ -265,14 +263,13 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         return { metas: [] };
     }
 
-    // Check if filter is applied (genre or country)
-    if (extra && extra.filter) {
+    // Check if genre or country filter is applied
+    if (extra && (extra.genre || extra.country)) {
       // Build filter string for getFilteredList
       // FilmTV format: /migliori/{filter}/anno-YEAR/#
 
-      // Combined genre and country mapping
-      const filterMap = {
-        // Genres
+      // Genre and country mapping
+      const genreMap = {
         'Azione': 'azione',
         'Commedia': 'commedia',
         'Drammatico': 'drammatico',
@@ -290,8 +287,10 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         'Musicale': 'musicale',
         'Western': 'western',
         'Noir': 'noir',
-        'Giallo': 'giallo',
-        // Countries
+        'Giallo': 'giallo'
+      };
+
+      const countryMap = {
         'Italia': 'italia',
         'USA': 'usa',
         'Francia': 'francia',
@@ -306,10 +305,18 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         'India': 'india'
       };
 
-      const filter = filterMap[extra.filter] || extra.filter.toLowerCase().replace(/ /g, '-');
+      let filter, filterValue;
+      if (extra.genre) {
+        filter = genreMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
+        filterValue = extra.genre;
+      } else {
+        filter = countryMap[extra.country] || extra.country.toLowerCase().replace(/ /g, '-');
+        filterValue = extra.country;
+      }
+
       const filterString = `${filter}/anno-${year}`;
 
-      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${extra.filter} -> ${filterString}`);
+      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${filterValue} -> ${filterString}`);
       const movies = await getFilteredList(filterString);
       console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
       return { metas: movies };
