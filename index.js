@@ -291,7 +291,11 @@ if (require.main === module) {
 
   const app = express();
 
-  // Serve the custom configure.html
+  // Serve the custom configure.html for both /configure and /configure.html
+  app.get('/configure', (req, res) => {
+    res.sendFile(path.join(__dirname, 'configure.html'));
+  });
+
   app.get('/configure.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'configure.html'));
   });
