@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(node -c:*)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

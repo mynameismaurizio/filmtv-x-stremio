@@ -18,72 +18,33 @@ const PREDEFINED_CATALOGS = [
   { filter: 'anni-1980', id: 'filmtv-1980s', name: 'FilmTV.it - Migliori anni 1980-1989' }
 ];
 
-// Function to build manifest with user configuration
-function buildManifest(config = {}) {
+// Genre and country options combined in one dropdown
+const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
+                'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
+                'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
+
+const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
+                   'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
+
+// Combine genres and countries into single filter list
+const FILTER_OPTIONS = [...GENRES, ...COUNTRIES];
+
+// Build static manifest with all available catalogs
+function buildManifest() {
   const catalogs = [];
 
-  // Parse selected predefined catalogs (default: recent years enabled)
-  const selectedCatalogs = config.predefined_catalogs
-    ? config.predefined_catalogs.split(',').map(c => c.trim())
-    : ['anno-2025', 'anno-2024', 'anno-2023', 'anno-2022', 'anno-2021', 'anno-2020']; // Default: recent years
-
-  // Genre and country options combined in one dropdown
-  const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
-                  'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
-                  'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
-
-  const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
-                     'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
-
-  // Combine genres and countries into single filter list
-  const FILTER_OPTIONS = [...GENRES, ...COUNTRIES];
-
-  // Add selected predefined catalogs
+  // Add all predefined catalogs (years and decades)
   PREDEFINED_CATALOGS.forEach(catalog => {
-    if (selectedCatalogs.includes(catalog.filter)) {
-      catalogs.push({
-        type: 'movie',
-        id: catalog.id,
-        name: catalog.name,
-        extra: [
-          { name: 'skip', isRequired: false },
-          { name: 'genre', isRequired: false, options: FILTER_OPTIONS }
-        ]
-      });
-    }
-  });
-
-  // Add user-defined year/decade catalogs
-  if (config.user_years) {
-    const userYears = config.user_years.split(',').map(y => y.trim()).filter(y => y);
-    userYears.forEach(yearFilter => {
-      // yearFilter can be like "anno-2019", "anni-1970", etc.
-      const isDecade = yearFilter.startsWith('anni-');
-      const yearMatch = yearFilter.match(/\d{4}/);
-      if (yearMatch) {
-        const year = yearMatch[0];
-        const displayName = isDecade
-          ? `FilmTV.it - Migliori anni ${year}-${parseInt(year) + 9}`
-          : `FilmTV.it - Migliori del ${year}`;
-
-        catalogs.push({
-          type: 'movie',
-          id: `filmtv-user-${yearFilter}`,
-          name: displayName,
-          extra: [
-            { name: 'skip', isRequired: false },
-            { name: 'genre', isRequired: false, options: FILTER_OPTIONS }
-          ]
-        });
-      }
+    catalogs.push({
+      type: 'movie',
+      id: catalog.id,
+      name: catalog.name,
+      extra: [
+        { name: 'skip', isRequired: false },
+        { name: 'genre', isRequired: false, options: FILTER_OPTIONS }
+      ]
     });
-  }
-
-  // Add custom catalogs based on user configuration
-  if (config.custom_catalogs) {
-    const customCatalogs = parseCustomCatalogs(config.custom_catalogs);
-    catalogs.push(...customCatalogs);
-  }
+  });
 
   return {
     id: 'community.filmtv.it',
@@ -92,7 +53,7 @@ function buildManifest(config = {}) {
     description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno e filtri personalizzati',
     logo: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png',
     background: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png',
-    resources: ['catalog', 'meta'],
+    resources: ['catalog'],
     types: ['movie'],
     catalogs: catalogs,
     idPrefixes: ['filmtv_'],
@@ -117,72 +78,6 @@ function buildManifest(config = {}) {
           '',
           '✅ La chiave deve essere 32 caratteri esadecimali',
           '❌ Senza questa chiave, l\'addon NON funzionerà'
-        ].join('\n')
-      },
-      {
-        key: 'predefined_catalogs',
-        type: 'text',
-        title: '📚 Cataloghi Predefiniti',
-        required: false,
-        default: 'anno-2025,anno-2024,anno-2023,anno-2022,anno-2021,anno-2020',
-        options: [
-          '✅ CATALOGHI PREDEFINITI - Seleziona quali mostrare',
-          '',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '📅 ANNI DISPONIBILI:',
-          '  anno-2025, anno-2024, anno-2023, anno-2022, anno-2021, anno-2020',
-          '',
-          '📆 DECENNI DISPONIBILI:',
-          '  anni-2020 (2020-2029)',
-          '  anni-2010 (2010-2019)',
-          '  anni-2000 (2000-2009)',
-          '  anni-1990 (1990-1999)',
-          '  anni-1980 (1980-1989)',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '',
-          '💡 ESEMPI:',
-          '',
-          '  📌 Solo anni recenti (default):',
-          '     anno-2025,anno-2024,anno-2023,anno-2022,anno-2021,anno-2020',
-          '',
-          '  📌 Mix di anni e decenni:',
-          '     anno-2025,anno-2024,anni-2010,anni-2000',
-          '',
-          '  📌 Solo decenni:',
-          '     anni-2020,anni-2010,anni-2000,anni-1990',
-          '',
-          '  📌 Nessuno (usa solo cataloghi personalizzati):',
-          '     (lascia vuoto)',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-        ].join('\n')
-      },
-      {
-        key: 'user_years',
-        type: 'text',
-        title: '📅 Anni/Decenni Personalizzati',
-        required: false,
-        default: '',
-        options: [
-          '➕ AGGIUNGI ALTRI ANNI O DECENNI',
-          '',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '📝 Formato: separa con virgole',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '',
-          '💡 ESEMPI:',
-          '',
-          '  📌 Anni specifici:',
-          '     anno-2019,anno-2018,anno-2017',
-          '',
-          '  📌 Decenni:',
-          '     anni-1970,anni-1960,anni-1950',
-          '',
-          '  📌 Mix:',
-          '     anno-2015,anni-1990,anni-1980',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '',
-          'ℹ️  Questi cataloghi si aggiungeranno a quelli predefiniti',
-          ''
         ].join('\n')
       },
       {
@@ -277,6 +172,7 @@ function parseCustomCatalogs(customConfig) {
   return catalogs;
 }
 
+// Create builder with default manifest
 const builder = new addonBuilder(buildManifest());
 
 // Catalog handler
@@ -390,23 +286,8 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   }
 });
 
-// Meta handler (optional but provides better detail view)
-builder.defineMetaHandler(async ({ type, id }) => {
-  if (type !== 'movie' || !id.startsWith('tt')) {
-    return { meta: null };
-  }
-
-  // For IMDB IDs, return basic info
-  // Stremio will use the catalog data for display
-  return {
-    meta: {
-      id: id,
-      type: 'movie',
-      name: 'Movie',
-      description: 'See catalog for details'
-    }
-  };
-});
+// Meta handler removed - Stremio will use catalog descriptions
+// This ensures the FilmTV ratings and descriptions persist when viewing movie details
 
 const PORT = process.env.PORT || 7000;
 
