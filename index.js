@@ -285,11 +285,23 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const path = require('path');
+  const { getRouter } = require('stremio-addon-sdk');
 
-  serveHTTP(builder.getInterface(), { port: PORT });
+  const app = express();
 
-  console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
-  console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-  console.log(`Configuration page: https://cacaspruz-filmtv-x-stremio.hf.space/configure.html`);
+  // Serve the custom configure.html
+  app.get('/configure.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'configure.html'));
+  });
+
+  // Serve addon routes
+  app.use(getRouter(builder.getInterface()));
+
+  app.listen(PORT, () => {
+    console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
+    console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+    console.log(`Configuration page: http://localhost:${PORT}/configure.html`);
+  });
 }
