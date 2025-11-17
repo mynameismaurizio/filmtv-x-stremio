@@ -1,24 +1,31 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper');
 
-// Available predefined catalogs
+// Available predefined catalogs (years and decades)
 const PREDEFINED_CATALOGS = [
-  { year: 2025, id: 'filmtv-best-2025', name: 'FilmTV.it - Migliori del 2025' },
-  { year: 2024, id: 'filmtv-best-2024', name: 'FilmTV.it - Migliori del 2024' },
-  { year: 2023, id: 'filmtv-best-2023', name: 'FilmTV.it - Migliori del 2023' },
-  { year: 2022, id: 'filmtv-best-2022', name: 'FilmTV.it - Migliori del 2022' },
-  { year: 2021, id: 'filmtv-best-2021', name: 'FilmTV.it - Migliori del 2021' },
-  { year: 2020, id: 'filmtv-best-2020', name: 'FilmTV.it - Migliori del 2020' }
+  // Recent years
+  { filter: 'anno-2025', id: 'filmtv-2025', name: 'FilmTV.it - Migliori del 2025' },
+  { filter: 'anno-2024', id: 'filmtv-2024', name: 'FilmTV.it - Migliori del 2024' },
+  { filter: 'anno-2023', id: 'filmtv-2023', name: 'FilmTV.it - Migliori del 2023' },
+  { filter: 'anno-2022', id: 'filmtv-2022', name: 'FilmTV.it - Migliori del 2022' },
+  { filter: 'anno-2021', id: 'filmtv-2021', name: 'FilmTV.it - Migliori del 2021' },
+  { filter: 'anno-2020', id: 'filmtv-2020', name: 'FilmTV.it - Migliori del 2020' },
+  // Decades
+  { filter: 'anni-2020', id: 'filmtv-2020s', name: 'FilmTV.it - Migliori anni 2020-2029' },
+  { filter: 'anni-2010', id: 'filmtv-2010s', name: 'FilmTV.it - Migliori anni 2010-2019' },
+  { filter: 'anni-2000', id: 'filmtv-2000s', name: 'FilmTV.it - Migliori anni 2000-2009' },
+  { filter: 'anni-1990', id: 'filmtv-1990s', name: 'FilmTV.it - Migliori anni 1990-1999' },
+  { filter: 'anni-1980', id: 'filmtv-1980s', name: 'FilmTV.it - Migliori anni 1980-1989' }
 ];
 
 // Function to build manifest with user configuration
 function buildManifest(config = {}) {
   const catalogs = [];
 
-  // Parse selected predefined catalogs (default: all enabled)
-  const selectedYears = config.predefined_catalogs
-    ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
-    : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
+  // Parse selected predefined catalogs (default: recent years enabled)
+  const selectedCatalogs = config.predefined_catalogs
+    ? config.predefined_catalogs.split(',').map(c => c.trim())
+    : ['anno-2025', 'anno-2024', 'anno-2023', 'anno-2022', 'anno-2021', 'anno-2020']; // Default: recent years
 
   // Genre and country options combined in one dropdown
   const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
@@ -33,7 +40,7 @@ function buildManifest(config = {}) {
 
   // Add selected predefined catalogs
   PREDEFINED_CATALOGS.forEach(catalog => {
-    if (selectedYears.includes(catalog.year)) {
+    if (selectedCatalogs.includes(catalog.filter)) {
       catalogs.push({
         type: 'movie',
         id: catalog.id,
@@ -45,6 +52,32 @@ function buildManifest(config = {}) {
       });
     }
   });
+
+  // Add user-defined year/decade catalogs
+  if (config.user_years) {
+    const userYears = config.user_years.split(',').map(y => y.trim()).filter(y => y);
+    userYears.forEach(yearFilter => {
+      // yearFilter can be like "anno-2019", "anni-1970", etc.
+      const isDecade = yearFilter.startsWith('anni-');
+      const yearMatch = yearFilter.match(/\d{4}/);
+      if (yearMatch) {
+        const year = yearMatch[0];
+        const displayName = isDecade
+          ? `FilmTV.it - Migliori anni ${year}-${parseInt(year) + 9}`
+          : `FilmTV.it - Migliori del ${year}`;
+
+        catalogs.push({
+          type: 'movie',
+          id: `filmtv-user-${yearFilter}`,
+          name: displayName,
+          extra: [
+            { name: 'skip', isRequired: false },
+            { name: 'genre', isRequired: false, options: FILTER_OPTIONS }
+          ]
+        });
+      }
+    });
+  }
 
   // Add custom catalogs based on user configuration
   if (config.custom_catalogs) {
@@ -89,29 +122,67 @@ function buildManifest(config = {}) {
       {
         key: 'predefined_catalogs',
         type: 'text',
-        title: '📚 Cataloghi Predefiniti (Selezionati)',
+        title: '📚 Cataloghi Predefiniti',
         required: false,
-        default: '2025,2024,2023,2022,2021,2020',
+        default: 'anno-2025,anno-2024,anno-2023,anno-2022,anno-2021,anno-2020',
         options: [
-          '✅ TUTTI I CATALOGHI SONO GIÀ SELEZIONATI',
-          '',
-          'Per DISABILITARE un catalogo, rimuovi il suo anno dalla lista.',
+          '✅ CATALOGHI PREDEFINITI - Seleziona quali mostrare',
           '',
           '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '🎬 Cataloghi disponibili:',
-          '  ☑️  2025 - Migliori del 2025',
-          '  ☑️  2024 - Migliori del 2024',
-          '  ☑️  2023 - Migliori del 2023',
-          '  ☑️  2022 - Migliori del 2022',
-          '  ☑️  2021 - Migliori del 2021',
-          '  ☑️  2020 - Migliori del 2020',
+          '📅 ANNI DISPONIBILI:',
+          '  anno-2025, anno-2024, anno-2023, anno-2022, anno-2021, anno-2020',
+          '',
+          '📆 DECENNI DISPONIBILI:',
+          '  anni-2020 (2020-2029)',
+          '  anni-2010 (2010-2019)',
+          '  anni-2000 (2000-2009)',
+          '  anni-1990 (1990-1999)',
+          '  anni-1980 (1980-1989)',
           '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
           '',
-          '💡 Esempi:',
-          '  • Tutti: 2025,2024,2023,2022,2021,2020',
-          '  • Solo ultimi 3 anni: 2025,2024,2023',
-          '  • Solo 2024 e 2022: 2024,2022',
-          '  • Nessuno: (lascia vuoto)'
+          '💡 ESEMPI:',
+          '',
+          '  📌 Solo anni recenti (default):',
+          '     anno-2025,anno-2024,anno-2023,anno-2022,anno-2021,anno-2020',
+          '',
+          '  📌 Mix di anni e decenni:',
+          '     anno-2025,anno-2024,anni-2010,anni-2000',
+          '',
+          '  📌 Solo decenni:',
+          '     anni-2020,anni-2010,anni-2000,anni-1990',
+          '',
+          '  📌 Nessuno (usa solo cataloghi personalizzati):',
+          '     (lascia vuoto)',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+        ].join('\n')
+      },
+      {
+        key: 'user_years',
+        type: 'text',
+        title: '📅 Anni/Decenni Personalizzati',
+        required: false,
+        default: '',
+        options: [
+          '➕ AGGIUNGI ALTRI ANNI O DECENNI',
+          '',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '📝 Formato: separa con virgole',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '',
+          '💡 ESEMPI:',
+          '',
+          '  📌 Anni specifici:',
+          '     anno-2019,anno-2018,anno-2017',
+          '',
+          '  📌 Decenni:',
+          '     anni-1970,anni-1960,anni-1950',
+          '',
+          '  📌 Mix:',
+          '     anno-2015,anni-1990,anni-1980',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          '',
+          'ℹ️  Questi cataloghi si aggiungeranno a quelli predefiniti',
+          ''
         ].join('\n')
       },
       {
@@ -240,82 +311,75 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       return { metas: movies };
     }
 
-    // Handle default year catalogs
-    let year;
-    switch (id) {
-      case 'filmtv-best-2025':
-        year = 2025;
-        break;
-      case 'filmtv-best-2024':
-        year = 2024;
-        break;
-      case 'filmtv-best-2023':
-        year = 2023;
-        break;
-      case 'filmtv-best-2022':
-        year = 2022;
-        break;
-      case 'filmtv-best-2021':
-        year = 2021;
-        break;
-      case 'filmtv-best-2020':
-        year = 2020;
-        break;
-      default:
-        return { metas: [] };
+    // Handle predefined and user-defined year/decade catalogs
+    // Extract year filter from catalog ID
+    let yearFilter = null;
+
+    // Check predefined catalogs
+    const predefinedCatalog = PREDEFINED_CATALOGS.find(c => c.id === id);
+    if (predefinedCatalog) {
+      yearFilter = predefinedCatalog.filter;
+    } else if (id.startsWith('filmtv-user-')) {
+      // User-defined catalog: filmtv-user-anno-2019 or filmtv-user-anni-1990
+      yearFilter = id.replace('filmtv-user-', '');
     }
+
+    if (!yearFilter) {
+      console.error(`✗ Unknown catalog ID: ${id}`);
+      return { metas: [] };
+    }
+
+    // Combined genre and country mapping
+    const filterMap = {
+      // Genres
+      'Azione': 'azione',
+      'Commedia': 'commedia',
+      'Drammatico': 'drammatico',
+      'Horror': 'horror',
+      'Fantascienza': 'fantascienza',
+      'Thriller': 'thriller',
+      'Animazione': 'animazione',
+      'Avventura': 'avventura',
+      'Fantasy': 'fantasy',
+      'Guerra': 'guerra',
+      'Documentario': 'documentario',
+      'Romantico': 'sentimentale',
+      'Biografico': 'biografico',
+      'Storico': 'storico',
+      'Musicale': 'musicale',
+      'Western': 'western',
+      'Noir': 'noir',
+      'Giallo': 'giallo',
+      // Countries
+      'Italia': 'italia',
+      'USA': 'usa',
+      'Francia': 'francia',
+      'Gran Bretagna': 'gran-bretagna',
+      'Germania': 'germania',
+      'Spagna': 'spagna',
+      'Giappone': 'giappone',
+      'Corea del Sud': 'corea-del-sud',
+      'Canada': 'canada',
+      'Australia': 'australia',
+      'Cina': 'cina',
+      'India': 'india'
+    };
 
     // Check if genre/country filter is applied
     if (extra && extra.genre) {
       // Build filter string for getFilteredList
-      // FilmTV format: /migliori/{filter}/anno-YEAR/#
+      // FilmTV format: /migliori/{genre}/{country}/{year}/#
+      const genreFilter = filterMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
+      const filterString = `${genreFilter}/${yearFilter}`;
 
-      // Combined genre and country mapping
-      const filterMap = {
-        // Genres
-        'Azione': 'azione',
-        'Commedia': 'commedia',
-        'Drammatico': 'drammatico',
-        'Horror': 'horror',
-        'Fantascienza': 'fantascienza',
-        'Thriller': 'thriller',
-        'Animazione': 'animazione',
-        'Avventura': 'avventura',
-        'Fantasy': 'fantasy',
-        'Guerra': 'guerra',
-        'Documentario': 'documentario',
-        'Romantico': 'sentimentale',
-        'Biografico': 'biografico',
-        'Storico': 'storico',
-        'Musicale': 'musicale',
-        'Western': 'western',
-        'Noir': 'noir',
-        'Giallo': 'giallo',
-        // Countries
-        'Italia': 'italia',
-        'USA': 'usa',
-        'Francia': 'francia',
-        'Gran Bretagna': 'gran-bretagna',
-        'Germania': 'germania',
-        'Spagna': 'spagna',
-        'Giappone': 'giappone',
-        'Corea del Sud': 'corea-del-sud',
-        'Canada': 'canada',
-        'Australia': 'australia',
-        'Cina': 'cina',
-        'India': 'india'
-      };
-
-      const filter = filterMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
-      const filterString = `${filter}/anno-${year}`;
-
-      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${extra.genre} -> ${filterString}`);
+      console.log(`✓ Fetching filtered catalog with filter: ${extra.genre} + ${yearFilter} -> ${filterString}`);
       const movies = await getFilteredList(filterString);
       console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
       return { metas: movies };
     } else {
-      // No filters - return all movies for the year
-      const movies = await getBestOfYear(year);
+      // No genre/country filter - return all movies for the year/decade
+      console.log(`✓ Fetching catalog for: ${yearFilter}`);
+      const movies = await getFilteredList(yearFilter);
       console.log(`✓ Returning ${movies.length} movies for catalog ${id}`);
       return { metas: movies };
     }
