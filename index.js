@@ -20,13 +20,16 @@ function buildManifest(config = {}) {
     ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
     : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
 
-  // Genre and country options for filters
+  // Genre and country options for filters (combined into one dropdown)
   const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
                   'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
                   'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
 
   const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
                      'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
+
+  // Combine genres and countries into a single filter list
+  const FILTER_OPTIONS = [...GENRES, ...COUNTRIES];
 
   // Add selected predefined catalogs
   PREDEFINED_CATALOGS.forEach(catalog => {
@@ -37,8 +40,7 @@ function buildManifest(config = {}) {
         name: catalog.name,
         extra: [
           { name: 'skip', isRequired: false },
-          { name: 'genre', isRequired: false, options: GENRES },
-          { name: 'country', isRequired: false, options: COUNTRIES }
+          { name: 'filter', isRequired: false, options: FILTER_OPTIONS }
         ]
       });
     }
@@ -263,65 +265,51 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         return { metas: [] };
     }
 
-    // Check if genre or country filters are applied
-    const hasFilters = (extra && extra.genre) || (extra && extra.country);
-
-    if (hasFilters) {
+    // Check if filter is applied (genre or country)
+    if (extra && extra.filter) {
       // Build filter string for getFilteredList
-      // FilmTV format: /migliori/genre/country/anno-YEAR/#
-      const filters = [];
+      // FilmTV format: /migliori/{filter}/anno-YEAR/#
 
-      if (extra.genre) {
-        // Convert Italian genre name to FilmTV filter format (lowercase, no prefix)
-        const genreMap = {
-          'Azione': 'azione',
-          'Commedia': 'commedia',
-          'Drammatico': 'drammatico',
-          'Horror': 'horror',
-          'Fantascienza': 'fantascienza',
-          'Thriller': 'thriller',
-          'Animazione': 'animazione',
-          'Avventura': 'avventura',
-          'Fantasy': 'fantasy',
-          'Guerra': 'guerra',
-          'Documentario': 'documentario',
-          'Romantico': 'sentimentale',
-          'Biografico': 'biografico',
-          'Storico': 'storico',
-          'Musicale': 'musicale',
-          'Western': 'western',
-          'Noir': 'noir',
-          'Giallo': 'giallo'
-        };
-        const genreFilter = genreMap[extra.genre] || extra.genre.toLowerCase();
-        filters.push(genreFilter);
-      }
+      // Combined genre and country mapping
+      const filterMap = {
+        // Genres
+        'Azione': 'azione',
+        'Commedia': 'commedia',
+        'Drammatico': 'drammatico',
+        'Horror': 'horror',
+        'Fantascienza': 'fantascienza',
+        'Thriller': 'thriller',
+        'Animazione': 'animazione',
+        'Avventura': 'avventura',
+        'Fantasy': 'fantasy',
+        'Guerra': 'guerra',
+        'Documentario': 'documentario',
+        'Romantico': 'sentimentale',
+        'Biografico': 'biografico',
+        'Storico': 'storico',
+        'Musicale': 'musicale',
+        'Western': 'western',
+        'Noir': 'noir',
+        'Giallo': 'giallo',
+        // Countries
+        'Italia': 'italia',
+        'USA': 'usa',
+        'Francia': 'francia',
+        'Gran Bretagna': 'gran-bretagna',
+        'Germania': 'germania',
+        'Spagna': 'spagna',
+        'Giappone': 'giappone',
+        'Corea del Sud': 'corea-del-sud',
+        'Canada': 'canada',
+        'Australia': 'australia',
+        'Cina': 'cina',
+        'India': 'india'
+      };
 
-      if (extra.country) {
-        // Convert country name to FilmTV filter format (lowercase, no prefix)
-        const countryMap = {
-          'Italia': 'italia',
-          'USA': 'usa',
-          'Francia': 'francia',
-          'Gran Bretagna': 'gran-bretagna',
-          'Germania': 'germania',
-          'Spagna': 'spagna',
-          'Giappone': 'giappone',
-          'Corea del Sud': 'corea-del-sud',
-          'Canada': 'canada',
-          'Australia': 'australia',
-          'Cina': 'cina',
-          'India': 'india'
-        };
-        const countryFilter = countryMap[extra.country] || extra.country.toLowerCase().replace(/ /g, '-');
-        filters.push(countryFilter);
-      }
+      const filter = filterMap[extra.filter] || extra.filter.toLowerCase().replace(/ /g, '-');
+      const filterString = `${filter}/anno-${year}`;
 
-      // Year always comes last with "anno-" prefix
-      filters.push(`anno-${year}`);
-
-      const filterString = filters.join('/');
-      console.log(`✓ Fetching filtered catalog for ${year} with filters: ${filterString}`);
+      console.log(`✓ Fetching filtered catalog for ${year} with filter: ${extra.filter} -> ${filterString}`);
       const movies = await getFilteredList(filterString);
       console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
       return { metas: movies };
