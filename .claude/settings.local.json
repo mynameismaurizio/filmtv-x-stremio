@@ -11,7 +11,8 @@
       "Bash(xargs:*)",
       "Bash(pkill:*)",
       "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7002 node:*)",
-      "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7003 node:*)"
+      "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7003 node:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

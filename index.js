@@ -311,6 +311,26 @@ if (require.main === module) {
     }
   });
 
+  // Debug endpoint to test config parsing
+  app.get('/admin/test-config/:config', (req, res) => {
+    try {
+      const configB64 = req.params.config;
+      const configJson = Buffer.from(configB64, 'base64').toString('utf-8');
+      const config = JSON.parse(configJson);
+      res.json({
+        success: true,
+        raw_base64: configB64,
+        decoded_json: configJson,
+        parsed_config: config,
+        has_tmdb_key: !!config.tmdb_api_key,
+        tmdb_key_length: config.tmdb_api_key ? config.tmdb_api_key.length : 0,
+        env_has_key: !!process.env.TMDB_API_KEY
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message, stack: error.stack });
+    }
+  });
+
   // Mount the addon routes
   const addonInterface = builder.getInterface();
   app.use(getRouter(addonInterface));

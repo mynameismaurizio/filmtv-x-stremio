@@ -303,7 +303,11 @@ async function getFilteredList(filters) {
   // Check catalog cache first
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
-    if (now - timestamp < CACHE_DURATION) {
+    // Invalidate cache if it has 0 movies (likely a previous error)
+    if (data && data.length === 0) {
+      console.log(`⚠️  Cache for ${filters} has 0 movies, invalidating...`);
+      catalogCache.delete(cacheKey);
+    } else if (now - timestamp < CACHE_DURATION) {
       return data;
     }
   }
@@ -419,7 +423,11 @@ async function getBestOfYear(year) {
   // Check catalog cache first
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
-    if (now - timestamp < CACHE_DURATION) {
+    // Invalidate cache if it has 0 movies (likely a previous error)
+    if (data && data.length === 0) {
+      console.log(`⚠️  Cache for ${year} has 0 movies, invalidating...`);
+      catalogCache.delete(cacheKey);
+    } else if (now - timestamp < CACHE_DURATION) {
       // Cache hit - return silently (no log spam)
       return data;
     }
