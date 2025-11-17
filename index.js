@@ -20,6 +20,14 @@ function buildManifest(config = {}) {
     ? config.predefined_catalogs.split(',').map(y => parseInt(y.trim()))
     : [2025, 2024, 2023, 2022, 2021, 2020]; // Default: all enabled
 
+  // Genre and country options for filters
+  const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'Thriller',
+                  'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
+                  'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
+
+  const COUNTRIES = ['Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
+                     'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India'];
+
   // Add selected predefined catalogs
   PREDEFINED_CATALOGS.forEach(catalog => {
     if (selectedYears.includes(catalog.year)) {
@@ -27,7 +35,11 @@ function buildManifest(config = {}) {
         type: 'movie',
         id: catalog.id,
         name: catalog.name,
-        extra: [{ name: 'skip', isRequired: false }]
+        extra: [
+          { name: 'skip', isRequired: false },
+          { name: 'genre', isRequired: false, options: GENRES },
+          { name: 'country', isRequired: false, options: COUNTRIES }
+        ]
       });
     }
   });
@@ -251,9 +263,71 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
         return { metas: [] };
     }
 
-    const movies = await getBestOfYear(year);
-    console.log(`✓ Returning ${movies.length} movies for catalog ${id}`);
-    return { metas: movies };
+    // Check if genre or country filters are applied
+    const hasFilters = (extra && extra.genre) || (extra && extra.country);
+
+    if (hasFilters) {
+      // Build filter string for getFilteredList
+      const filters = [];
+      filters.push(`anno-${year}`);
+
+      if (extra.genre) {
+        // Convert Italian genre name to FilmTV filter format
+        const genreMap = {
+          'Azione': 'azione',
+          'Commedia': 'commedia',
+          'Drammatico': 'drammatico',
+          'Horror': 'horror',
+          'Fantascienza': 'fantascienza',
+          'Thriller': 'thriller',
+          'Animazione': 'animazione',
+          'Avventura': 'avventura',
+          'Fantasy': 'fantasy',
+          'Guerra': 'guerra',
+          'Documentario': 'documentario',
+          'Romantico': 'sentimentale',
+          'Biografico': 'biografico',
+          'Storico': 'storico',
+          'Musicale': 'musicale',
+          'Western': 'western',
+          'Noir': 'noir',
+          'Giallo': 'giallo'
+        };
+        const genreFilter = genreMap[extra.genre] || extra.genre.toLowerCase();
+        filters.push(`genere-${genreFilter}`);
+      }
+
+      if (extra.country) {
+        // Convert country name to FilmTV filter format
+        const countryMap = {
+          'Italia': 'italia',
+          'USA': 'usa',
+          'Francia': 'francia',
+          'Gran Bretagna': 'gran-bretagna',
+          'Germania': 'germania',
+          'Spagna': 'spagna',
+          'Giappone': 'giappone',
+          'Corea del Sud': 'corea-del-sud',
+          'Canada': 'canada',
+          'Australia': 'australia',
+          'Cina': 'cina',
+          'India': 'india'
+        };
+        const countryFilter = countryMap[extra.country] || extra.country.toLowerCase().replace(/ /g, '-');
+        filters.push(`paese-${countryFilter}`);
+      }
+
+      const filterString = filters.join('/');
+      console.log(`✓ Fetching filtered catalog for ${year} with filters: ${filterString}`);
+      const movies = await getFilteredList(filterString);
+      console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
+      return { metas: movies };
+    } else {
+      // No filters - return all movies for the year
+      const movies = await getBestOfYear(year);
+      console.log(`✓ Returning ${movies.length} movies for catalog ${id}`);
+      return { metas: movies };
+    }
   } catch (error) {
     console.error(`✗ Error in catalog handler for ${id}:`, error.message);
     console.error('Stack trace:', error.stack);

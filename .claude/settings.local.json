@@ -16,7 +16,8 @@
       "Bash(TMDB_API_KEY=\"\" PORT=7001 node:*)",
       "Bash(PORT=7001 node:*)",
       "Bash(cat:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7000 node:*)"
     ],
     "deny": [],
     "ask": []
