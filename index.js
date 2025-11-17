@@ -284,60 +284,11 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const express = require('express');
-  const path = require('path');
-  const { getRouter } = require('stremio-addon-sdk');
+  const { serveHTTP } = require('stremio-addon-sdk');
 
-  const app = express();
+  serveHTTP(builder.getInterface(), { port: PORT });
 
-  // Serve the configuration page
-  app.get('/configure', (req, res) => {
-    res.sendFile(path.join(__dirname, 'configure.html'));
-  });
-
-  // Cache management endpoint (for debugging)
-  app.get('/admin/clear-cache', (req, res) => {
-    const fs = require('fs');
-    const cachePath = path.join(__dirname, '.cache', 'catalogs.json');
-    try {
-      if (fs.existsSync(cachePath)) {
-        fs.unlinkSync(cachePath);
-        res.json({ success: true, message: 'Cache cleared successfully' });
-      } else {
-        res.json({ success: true, message: 'No cache file found' });
-      }
-    } catch (error) {
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-
-  // Debug endpoint to test config parsing
-  app.get('/admin/test-config/:config', (req, res) => {
-    try {
-      const configB64 = req.params.config;
-      const configJson = Buffer.from(configB64, 'base64').toString('utf-8');
-      const config = JSON.parse(configJson);
-      res.json({
-        success: true,
-        raw_base64: configB64,
-        decoded_json: configJson,
-        parsed_config: config,
-        has_tmdb_key: !!config.tmdb_api_key,
-        tmdb_key_length: config.tmdb_api_key ? config.tmdb_api_key.length : 0,
-        env_has_key: !!process.env.TMDB_API_KEY
-      });
-    } catch (error) {
-      res.status(500).json({ success: false, error: error.message, stack: error.stack });
-    }
-  });
-
-  // Mount the addon routes
-  const addonInterface = builder.getInterface();
-  app.use(getRouter(addonInterface));
-
-  app.listen(PORT, () => {
-    console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
-    console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-    console.log(`Configuration page: http://localhost:${PORT}/configure`);
-  });
+  console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
+  console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+  console.log(`Configuration page: https://cacaspruz-filmtv-x-stremio.hf.space/configure.html`);
 }
