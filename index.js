@@ -295,6 +295,22 @@ if (require.main === module) {
     res.sendFile(path.join(__dirname, 'configure.html'));
   });
 
+  // Cache management endpoint (for debugging)
+  app.get('/admin/clear-cache', (req, res) => {
+    const fs = require('fs');
+    const cachePath = path.join(__dirname, '.cache', 'catalogs.json');
+    try {
+      if (fs.existsSync(cachePath)) {
+        fs.unlinkSync(cachePath);
+        res.json({ success: true, message: 'Cache cleared successfully' });
+      } else {
+        res.json({ success: true, message: 'No cache file found' });
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Mount the addon routes
   const addonInterface = builder.getInterface();
   app.use(getRouter(addonInterface));

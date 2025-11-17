@@ -8,7 +8,10 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix catalog caching for concurrent requests\n\n- Added promise-based cache to prevent duplicate concurrent requests\n- When multiple requests arrive simultaneously, they now wait for the same promise\n- This prevents duplicate scraping and API calls when scrolling in Stremio\n- Added visual indicators: 🔄 (fetching), ⏳ (waiting), ✓ (cached), ✅ (newly cached)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(lsof:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(pkill:*)",
+      "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7002 node:*)",
+      "Bash(TMDB_API_KEY=8d2aab34f6381b9a1e02f68fc17cfd81 PORT=7003 node:*)"
     ],
     "deny": [],
     "ask": []

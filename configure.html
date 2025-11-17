@@ -245,16 +245,6 @@
             display: block;
         }
 
-        .localhost-warning {
-            background: #fef3c7;
-            color: #92400e;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            border-left: 4px solid #f59e0b;
-        }
-
         .button-group {
             display: flex;
             gap: 10px;
@@ -364,9 +354,6 @@
 
         <!-- Config Output -->
         <div id="config-output" class="config-output">
-            <div class="localhost-warning">
-                💡 <strong>Info:</strong> L'URL generato utilizza automaticamente il dominio corrente (sia localhost che il server deployato).
-            </div>
             <div id="config-text"></div>
             <div class="button-group">
                 <button class="copy-btn" onclick="copyManifestUrl(event)">📋 Copia URL</button>
@@ -547,24 +534,8 @@
             const baseUrl = window.location.origin;
             currentManifestUrl = `${baseUrl}/${configEncoded}/manifest.json`;
 
-            // Check if using localhost
-            const isLocalhost = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
-            const localhostWarning = isLocalhost ? `
-                <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; border-radius: 4px;">
-                    <strong style="color: #991b1b;">⚠️ ATTENZIONE: Stai usando localhost!</strong><br><br>
-                    <span style="color: #7f1d1d;">
-                    Stremio NON può accedere a localhost. Devi usare un server pubblico (come Hugging Face).<br><br>
-                    <strong>Cosa fare:</strong><br>
-                    1. Fai il deploy su Hugging Face o altro servizio pubblico<br>
-                    2. Apri la pagina /configure sul server pubblico<br>
-                    3. Genera l'URL di configurazione da lì
-                    </span>
-                </div>
-            ` : '';
-
             // Display the configuration
             document.getElementById('config-text').innerHTML = `
-                ${localhostWarning}
                 <strong>URL Manifest da installare in Stremio:</strong><br><br>
                 <div style="background: #374151; padding: 10px; border-radius: 4px; margin: 10px 0; word-break: break-all; color: white;">
                     ${currentManifestUrl}
