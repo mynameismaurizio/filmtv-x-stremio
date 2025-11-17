@@ -234,66 +234,132 @@ async function scrapeFilmTVList(year) {
   const movies = [];
   const seen = new Set();
   const PAGES_TO_SCRAPE = 2; // Scrape first 2 pages (40 movies)
+  const MOVIES_PER_PAGE = 20;
 
   try {
-    for (let page = 1; page <= PAGES_TO_SCRAPE; page++) {
-      const url = page === 1
-        ? `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#`
-        : `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#film-pagina-${page}`;
+    // First, get the initial page to extract the loader URL
+    const initialUrl = `${FILMTV_BASE_URL}/film/migliori/anno-${year}/#`;
+    const initialHtml = await fetchWithCache(initialUrl);
+    let $ = cheerio.load(initialHtml);
 
-      const html = await fetchWithCache(url);
-      const $ = cheerio.load(html);
+    // Extract the loader URL from data-exec attribute
+    const dataExec = $('[data-exec*="loader/film"]').attr('data-exec');
+    let loaderUrl = null;
 
-      // Find all numbered movie entries like "1.Movie Title"
-      $('h3, h2, h4').each((_, elem) => {
-        const text = $(elem).text().trim();
+    if (dataExec) {
+      // Extract URL from: newlist('M','//www.filmtv.it/loader/film/.../0/20/')
+      const match = dataExec.match(/newlist\('M','(\/\/[^']+)'\)/);
+      if (match) {
+        loaderUrl = 'https:' + match[1];
+        // Remove the /start/limit/ part to get base URL
+        loaderUrl = loaderUrl.replace(/\/\d+\/\d+\/$/, '');
+      }
+    }
 
-        // Match numbered entries like "1.Title" at the start
-        const match = text.match(/^(\d+)\.\s*(.+?)$/);
+    // Process first page (already loaded)
+    $('h3, h2, h4').each((_, elem) => {
+      const text = $(elem).text().trim();
+      const match = text.match(/^(\d+)\.\s*(.+?)$/);
 
-        if (match) {
-          let title = match[2].trim();
+      if (match) {
+        let title = match[2].trim();
+        title = title.split('\n')[0].split('\t')[0].trim();
 
-          // Remove everything after newline or tab
-          title = title.split('\n')[0].split('\t')[0].trim();
+        if (title.length < 3 ||
+            title.includes('La recensione') ||
+            title.includes('Uscito in Italia') ||
+            title.includes('Uscita in Italia') ||
+            title.includes('streaming') ||
+            title.includes('migliori') ||
+            seen.has(title)) {
+          return;
+        }
 
-          // Skip if it's not a valid title
-          if (title.length < 3 ||
-              title.includes('La recensione') ||
-              title.includes('Uscito in Italia') ||
-              title.includes('Uscita in Italia') ||
-              title.includes('streaming') ||
-              title.includes('migliori') ||
-              seen.has(title)) {
-            return;
+        let filmtvRating = null;
+        const article = $(elem).closest('article');
+        const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+        if (ratingSpan.length > 0) {
+          const ratingText = ratingSpan.text().trim();
+          const rating = parseFloat(ratingText);
+          if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+            filmtvRating = rating;
           }
+        }
 
-          // Try to find FilmTV rating in the movie's article container
-          let filmtvRating = null;
-          const article = $(elem).closest('article');
+        seen.add(title);
+        movies.push({
+          title: title,
+          year: year,
+          filmtvRating: filmtvRating
+        });
+      }
+    });
 
-          // Look for rating in footer with data-updcnt attribute
-          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-          if (ratingSpan.length > 0) {
-            const ratingText = ratingSpan.text().trim();
-            const rating = parseFloat(ratingText);
-            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-              filmtvRating = rating;
+    // If loader URL found and we want more pages, fetch additional pages
+    if (loaderUrl && PAGES_TO_SCRAPE > 1) {
+      console.log(`📄 Found loader URL: ${loaderUrl}`);
+      for (let page = 2; page <= PAGES_TO_SCRAPE; page++) {
+        const start = (page - 1) * MOVIES_PER_PAGE;
+        const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
+
+        console.log(`📡 Fetching page ${page} from: ${paginatedUrl}`);
+        const response = await fetchWithCache(paginatedUrl);
+        console.log(`✓ Got response, length: ${response.length}`);
+        let data;
+        try {
+          data = JSON.parse(response);
+          console.log(`✓ Parsed JSON successfully`);
+        } catch (e) {
+          console.error(`Failed to parse JSON from ${paginatedUrl}: ${e.message}`);
+          continue;
+        }
+
+        if (data.html) {
+          $ = cheerio.load(data.html);
+
+          $('h2, h3, h4').each((_, elem) => {
+            const text = $(elem).text().trim();
+            const match = text.match(/^(\d+)\.\s*(.+?)$/);
+
+            if (match) {
+              let title = match[2].trim();
+              title = title.split('\n')[0].split('\t')[0].trim();
+
+              if (title.length < 3 ||
+                  title.includes('La recensione') ||
+                  title.includes('Uscito in Italia') ||
+                  title.includes('Uscita in Italia') ||
+                  title.includes('streaming') ||
+                  title.includes('migliori') ||
+                  seen.has(title)) {
+                return;
+              }
+
+              let filmtvRating = null;
+              const article = $(elem).closest('article');
+              const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+              if (ratingSpan.length > 0) {
+                const ratingText = ratingSpan.text().trim();
+                const rating = parseFloat(ratingText);
+                if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                  filmtvRating = rating;
+                }
+              }
+
+              seen.add(title);
+              movies.push({
+                title: title,
+                year: year,
+                filmtvRating: filmtvRating
+              });
             }
-          }
-
-          seen.add(title);
-          movies.push({
-            title: title,
-            year: year,
-            filmtvRating: filmtvRating
           });
         }
-      });
+      }
     }
 
     console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year} (${PAGES_TO_SCRAPE} pages)`);
-    return movies; // Return all scraped movies
+    return movies;
   } catch (error) {
     console.error(`Error scraping FilmTV.it for ${year}:`, error.message);
     return [];
@@ -331,59 +397,133 @@ async function getFilteredList(filters) {
       const movies = [];
       const seen = new Set();
       const PAGES_TO_SCRAPE = 2; // Scrape first 2 pages (40 movies)
+      const MOVIES_PER_PAGE = 20;
 
-      for (let page = 1; page <= PAGES_TO_SCRAPE; page++) {
-        // Build FilmTV URL with filters and pagination
-        const url = page === 1
-          ? `${FILMTV_BASE_URL}/film/migliori/${filters}/#`
-          : `${FILMTV_BASE_URL}/film/migliori/${filters}/#film-pagina-${page}`;
+      // First, get the initial page to extract the loader URL
+      const initialUrl = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
+      const initialHtml = await fetchWithCache(initialUrl);
+      let $ = cheerio.load(initialHtml);
 
-        const html = await fetchWithCache(url);
-        const $ = cheerio.load(html);
+      // Extract the loader URL from data-exec attribute
+      const dataExec = $('[data-exec*="loader/film"]').attr('data-exec');
+      let loaderUrl = null;
 
-        // Find all numbered movie entries
-        $('h3, h2, h4').each((_, elem) => {
-          const text = $(elem).text().trim();
-          const match = text.match(/^(\d+)\.\s*(.+?)$/);
+      if (dataExec) {
+        // Extract URL from: newlist('M','//www.filmtv.it/loader/film/.../0/20/')
+        const match = dataExec.match(/newlist\('M','(\/\/[^']+)'\)/);
+        if (match) {
+          loaderUrl = 'https:' + match[1];
+          // Remove the /start/limit/ part to get base URL
+          loaderUrl = loaderUrl.replace(/\/\d+\/\d+\/$/, '');
+        }
+      }
 
-          if (match) {
-            let title = match[2].trim();
-            title = title.split('\n')[0].split('\t')[0].trim();
+      // Process first page (already loaded)
+      $('h3, h2, h4').each((_, elem) => {
+        const text = $(elem).text().trim();
+        const match = text.match(/^(\d+)\.\s*(.+?)$/);
 
-            if (title.length < 3 ||
-                title.includes('La recensione') ||
-                title.includes('Uscito in Italia') ||
-                title.includes('Uscita in Italia') ||
-                title.includes('streaming') ||
-                title.includes('migliori') ||
-                seen.has(title)) {
-              return;
+        if (match) {
+          let title = match[2].trim();
+          title = title.split('\n')[0].split('\t')[0].trim();
+
+          if (title.length < 3 ||
+              title.includes('La recensione') ||
+              title.includes('Uscito in Italia') ||
+              title.includes('Uscita in Italia') ||
+              title.includes('streaming') ||
+              title.includes('migliori') ||
+              seen.has(title)) {
+            return;
+          }
+
+          let filmtvRating = null;
+          const article = $(elem).closest('article');
+          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+          if (ratingSpan.length > 0) {
+            const ratingText = ratingSpan.text().trim();
+            const rating = parseFloat(ratingText);
+            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+              filmtvRating = rating;
             }
+          }
 
-            // Try to find FilmTV rating
-            let filmtvRating = null;
-            const article = $(elem).closest('article');
-            const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-            if (ratingSpan.length > 0) {
-              const ratingText = ratingSpan.text().trim();
-              const rating = parseFloat(ratingText);
-              if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-                filmtvRating = rating;
+          seen.add(title);
+          const yearMatch = filters.match(/anno-(\d{4})/);
+          const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+          movies.push({
+            title: title,
+            year: year,
+            filmtvRating: filmtvRating
+          });
+        }
+      });
+
+      // If loader URL found and we want more pages, fetch additional pages
+      if (loaderUrl && PAGES_TO_SCRAPE > 1) {
+        console.log(`📄 Found loader URL: ${loaderUrl}`);
+        for (let page = 2; page <= PAGES_TO_SCRAPE; page++) {
+          const start = (page - 1) * MOVIES_PER_PAGE;
+          const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
+
+          console.log(`📡 Fetching page ${page} from: ${paginatedUrl}`);
+          const response = await fetchWithCache(paginatedUrl);
+          console.log(`✓ Got response, length: ${response.length}`);
+          let data;
+          try {
+            data = JSON.parse(response);
+            console.log(`✓ Parsed JSON successfully`);
+          } catch (e) {
+            console.error(`Failed to parse JSON from ${paginatedUrl}: ${e.message}`);
+            continue;
+          }
+
+          if (data.html) {
+            $ = cheerio.load(data.html);
+
+            $('h2, h3, h4').each((_, elem) => {
+              const text = $(elem).text().trim();
+              const match = text.match(/^(\d+)\.\s*(.+?)$/);
+
+              if (match) {
+                let title = match[2].trim();
+                title = title.split('\n')[0].split('\t')[0].trim();
+
+                if (title.length < 3 ||
+                    title.includes('La recensione') ||
+                    title.includes('Uscito in Italia') ||
+                    title.includes('Uscita in Italia') ||
+                    title.includes('streaming') ||
+                    title.includes('migliori') ||
+                    seen.has(title)) {
+                  return;
+                }
+
+                let filmtvRating = null;
+                const article = $(elem).closest('article');
+                const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+                if (ratingSpan.length > 0) {
+                  const ratingText = ratingSpan.text().trim();
+                  const rating = parseFloat(ratingText);
+                  if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                    filmtvRating = rating;
+                  }
+                }
+
+                seen.add(title);
+                const yearMatch = filters.match(/anno-(\d{4})/);
+                const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+                movies.push({
+                  title: title,
+                  year: year,
+                  filmtvRating: filmtvRating
+                });
               }
-            }
-
-            seen.add(title);
-            // Try to extract year from filters or default to current year
-            const yearMatch = filters.match(/anno-(\d{4})/);
-            const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-
-            movies.push({
-              title: title,
-              year: year,
-              filmtvRating: filmtvRating
             });
           }
-        });
+        }
       }
 
       console.log(`Scraped ${movies.length} movies from FilmTV.it for filters: ${filters} (${PAGES_TO_SCRAPE} pages)`);
