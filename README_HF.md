@@ -1,11 +1,11 @@
 ---
-title: FilmTV.it Stremio Addon
-emoji: 🎬
-colorFrom: red
-colorTo: purple
+title: Filmtvpestremio
+emoji: 📉
+colorFrom: gray
+colorTo: green
 sdk: docker
 pinned: false
-license: mit
+short_description: Un addon per consultare i cataloghi di FilmTV su Stremio
 ---
 
 # Stremio FilmTV.it Addon
@@ -35,4 +35,4 @@ Or manually:
 
 ## Source Code
 
-The source code is available on GitHub: [filmtv-x-stremio](https://github.com/YOUR_USERNAME/filmtv-x-stremio)
+The source code is available on GitHub: [filmtv-x-stremio](https://github.com/mynameismaurizio/filmtv-x-stremio)

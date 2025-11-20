@@ -1,16 +1,16 @@
-FROM node:18-slim
+FROM node:20-slim
+
+# Install git (needed to clone from GitHub)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Clone the repository from GitHub
+RUN git clone https://github.com/mynameismaurizio/filmtv-x-stremio.git .
 
 # Install dependencies
 RUN npm install --production
-
-# Copy application files
-COPY . .
 
 # Expose port (Hugging Face uses 7860 by default)
 EXPOSE 7860

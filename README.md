@@ -1,3 +1,13 @@
+---
+title: Filmtvpestremio
+emoji: 📉
+colorFrom: gray
+colorTo: green
+sdk: docker
+pinned: false
+short_description: Un addon per consultare i cataloghi di FilmTV su Stremio
+---
+
 # FilmTV.X Stremio Addon
 
 A Stremio addon that provides curated movie catalogs using TMDB (The Movie Database) API.

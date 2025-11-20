@@ -289,7 +289,7 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 // Meta handler removed - Stremio will use catalog descriptions
 // This ensures the FilmTV ratings and descriptions persist when viewing movie details
 
-const PORT = process.env.PORT || 7000;
+const PORT = process.env.PORT || 7860;
 
 module.exports = builder.getInterface();
 
