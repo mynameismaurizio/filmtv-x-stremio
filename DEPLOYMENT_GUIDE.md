@@ -43,25 +43,34 @@
 
 ## 📋 Step 4: Configurare lo Space
 
-### Opzione A: Collegare a GitHub (CONSIGLIATO)
+### ⭐ METODO CONSIGLIATO: Dockerfile che clona da GitHub
 
-1. Nello Space, vai su **Settings**
-2. Scrolla a **"Repository"**
-3. Clicca **"Link to GitHub repository"**
-4. Seleziona `mynameismaurizio/filmtv-x-stremio`
-5. Hugging Face sincronizzerà automaticamente
-
-### Opzione B: Upload manuale
+Il Dockerfile è già configurato per clonare automaticamente il codice da GitHub durante il build. Quindi devi solo caricare 2 file:
 
 1. Nello Space, vai su **Files and versions**
 2. Clicca **"Add file"** → **"Upload files"**
-3. Carica questi file:
-   - `Dockerfile`
+3. Carica SOLO questi 2 file:
+   - `Dockerfile` (clonerà automaticamente da GitHub)
+   - `README_HF.md` (per la pagina dello Space)
+4. Clicca **"Commit changes"**
+
+**Il Dockerfile clonerà automaticamente tutto il codice da GitHub durante il build!**
+
+### Opzione Alternativa: Upload manuale di tutti i file
+
+Se preferisci non usare GitHub:
+
+1. Nello Space, vai su **Files and versions**
+2. Clicca **"Add file"** → **"Upload files"**
+3. Carica tutti questi file:
+   - `Dockerfile.manual` (rinomina in `Dockerfile` dopo l'upload)
    - `README_HF.md`
    - `index.js`
    - `scraper-safe.js`
    - `package.json`
    - `package-lock.json`
+
+**Nota:** Dopo l'upload, rinomina `Dockerfile.manual` in `Dockerfile` (questo Dockerfile NON clona da GitHub, usa i file caricati).
 
 ## 📋 Step 5: Configurare Secrets
 
