@@ -72,24 +72,7 @@ Se preferisci non usare GitHub:
 
 **Nota:** Dopo l'upload, rinomina `Dockerfile.manual` in `Dockerfile` (questo Dockerfile NON clona da GitHub, usa i file caricati).
 
-## 📋 Step 5: Configurare Secrets
-
-1. Nello Space, vai su **Settings**
-2. Scrolla a **"Variables and secrets"**
-3. Sotto **"Secrets"**, clicca **"New secret"**
-4. Aggiungi:
-   - **Name**: `TMDB_API_KEY`
-   - **Value**: La tua chiave API TMDB
-5. Clicca **Save**
-
-**Come ottenere la chiave TMDB:**
-- Vai su https://www.themoviedb.org
-- Crea account gratuito
-- Vai su Settings → API
-- Richiedi API key
-- Copia la chiave (32 caratteri)
-
-## 📋 Step 6: Deploy
+## 📋 Step 5: Deploy
 
 ### Se hai collegato GitHub:
 - Il deploy parte automaticamente quando pushi su GitHub
@@ -101,7 +84,7 @@ Se preferisci non usare GitHub:
 3. Clicca **"Restart this Space"**
 4. Vai su **Logs** per vedere il build
 
-## 📋 Step 7: Verificare il Deploy
+## 📋 Step 6: Verificare il Deploy
 
 1. Aspetta 3-5 minuti per il build
 2. Vai su **Logs** e cerca:
@@ -115,7 +98,7 @@ Se preferisci non usare GitHub:
    ```
    Dovresti vedere JSON con i cataloghi
 
-## 📋 Step 8: Installare in Stremio
+## 📋 Step 7: Installare in Stremio
 
 1. Apri **Stremio**
 2. Vai su **Addons** (icona puzzle in alto a destra)
@@ -125,6 +108,12 @@ Se preferisci non usare GitHub:
    https://YOUR_USERNAME-filmtv-x-stremio.hf.space/manifest.json
    ```
 5. Clicca **"Install"**
+6. **IMPORTANTE:** Quando installi l'addon, Stremio ti chiederà di configurare:
+   - **Chiave API TMDB**: Inserisci la tua chiave TMDB (ottienila da https://www.themoviedb.org/settings/api)
+   - **Cataloghi Personalizzati** (opzionale): Puoi aggiungere cataloghi personalizzati se vuoi
+7. Clicca **"Save"** e poi **"Install"**
+
+**Nota:** La chiave TMDB viene inserita dall'utente durante la configurazione in Stremio, non serve impostarla come secret su Hugging Face!
 
 ## 🔍 Troubleshooting
 
@@ -134,7 +123,7 @@ Se preferisci non usare GitHub:
 - Verifica che `package.json` non abbia `express` nelle dipendenze
 
 ### Addon non funziona
-- Verifica che `TMDB_API_KEY` sia impostato nei Secrets
+- Verifica di aver inserito la chiave TMDB durante la configurazione in Stremio
 - Controlla i Logs per errori API
 - Testa il manifest URL nel browser
 
@@ -152,11 +141,11 @@ Se preferisci non usare GitHub:
 
 - [ ] Codice pushato su GitHub
 - [ ] Space creato su Hugging Face
-- [ ] Space collegato a GitHub OPPURE file caricati manualmente
-- [ ] `TMDB_API_KEY` impostato nei Secrets
+- [ ] Dockerfile e README_HF.md caricati nello Space
 - [ ] Build completato con successo
 - [ ] Manifest URL accessibile nel browser
 - [ ] Addon installato in Stremio
+- [ ] Chiave TMDB inserita durante la configurazione
 - [ ] Film visibili in Stremio
 
 ## 🎯 URL Finale
