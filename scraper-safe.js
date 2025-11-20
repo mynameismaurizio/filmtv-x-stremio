@@ -1,6 +1,26 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+// Logging helper with timestamps
+function getTimestamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function log(...args) {
+  console.log(`[${getTimestamp()}]`, ...args);
+}
+
+function logError(...args) {
+  console.error(`[${getTimestamp()}]`, ...args);
+}
+
 // FilmTV.it configuration
 const FILMTV_BASE_URL = 'https://www.filmtv.it';
 
@@ -87,7 +107,7 @@ async function fetchWithCache(url) {
       cache.set(url, { data: response.data, timestamp: now });
       return response.data;
     } catch (error) {
-      console.error(`Error fetching ${url}:`, error.message);
+      logError(`Error fetching ${url}:`, error.message);
       throw error;
     }
   });
@@ -123,10 +143,10 @@ async function fetchFromTMDB(endpoint, params = {}) {
       cache.set(cacheKey, { data: response.data, timestamp: now });
       return response.data;
     } catch (error) {
-      console.error('TMDB API Error:', error.message);
+      logError('TMDB API Error:', error.message);
       if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Data:', error.response.data);
+        logError('Status:', error.response.status);
+        logError('Data:', error.response.data);
       }
       throw error;
     }
@@ -139,7 +159,7 @@ function convertTMDBToStremio(tmdbMovie) {
   // TMDB uses numeric IDs, but we need IMDB IDs for Stremio
   const imdbId = tmdbMovie.imdb_id;
   if (!imdbId || !imdbId.startsWith('tt')) {
-    console.log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title}`);
+    log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title}`);
     return null;
   }
 
@@ -201,7 +221,7 @@ async function getMovieWithIMDB(tmdbId) {
       imdb_id: movieDetails.external_ids?.imdb_id || null
     };
   } catch (error) {
-    console.error(`Error fetching movie ${tmdbId}:`, error.message);
+    logError(`Error fetching movie ${tmdbId}:`, error.message);
     return null;
   }
 }
@@ -228,7 +248,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null) {
 
     return convertTMDBToStremio(fullMovie);
   } catch (error) {
-    console.error(`Error searching TMDB for ${title}:`, error.message);
+    logError(`Error searching TMDB for ${title}:`, error.message);
     return null;
   }
 }
@@ -346,17 +366,17 @@ async function scrapeFilmTVList(year) {
             });
           }
         } catch (error) {
-          console.error(`Error fetching page ${page}:`, error.message);
+          logError(`Error fetching page ${page}:`, error.message);
           // Continue with what we have
           break;
         }
       }
     }
 
-    console.log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
+    log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
     return movies;
   } catch (error) {
-    console.error(`Error scraping FilmTV.it for ${year}:`, error.message);
+    logError(`Error scraping FilmTV.it for ${year}:`, error.message);
     return [];
   }
 }
@@ -381,7 +401,7 @@ async function getFilteredList(filters) {
 
   const promise = (async () => {
     try {
-      console.log(`🔄 Fetching fresh catalog for filters: ${filters}`);
+      log(`🔄 Fetching fresh catalog for filters: ${filters}`);
 
       const movies = [];
       const seen = new Set();
@@ -499,14 +519,14 @@ async function getFilteredList(filters) {
               });
             }
           } catch (error) {
-            console.error(`Error fetching page ${page}:`, error.message);
+            logError(`Error fetching page ${page}:`, error.message);
             break;
           }
         }
       }
 
       if (movies.length === 0) {
-        console.log(`No movies found for filters: ${filters}`);
+        log(`No movies found for filters: ${filters}`);
         return [];
       }
 
@@ -517,7 +537,7 @@ async function getFilteredList(filters) {
             const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
             return tmdbMovie;
           } catch (error) {
-            console.error(`Error processing ${movie.title}:`, error.message);
+            logError(`Error processing ${movie.title}:`, error.message);
             return null;
           }
         })
@@ -527,11 +547,11 @@ async function getFilteredList(filters) {
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
-      console.log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
+      log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
 
       return results;
     } catch (error) {
-      console.error('Error fetching filtered list:', error.message);
+      logError('Error fetching filtered list:', error.message);
       return [];
     } finally {
       inFlightPromises.delete(cacheKey);
@@ -559,7 +579,7 @@ async function getBestOfYear(year) {
 
   const promise = (async () => {
     try {
-      console.log(`🔄 Fetching fresh catalog for ${year}`);
+      log(`🔄 Fetching fresh catalog for ${year}`);
 
       const filmtvMovies = await scrapeFilmTVList(year);
 
@@ -574,7 +594,7 @@ async function getBestOfYear(year) {
             const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
             return tmdbMovie;
           } catch (error) {
-            console.error(`Error processing ${movie.title}:`, error.message);
+            logError(`Error processing ${movie.title}:`, error.message);
             return null;
           }
         })
@@ -584,11 +604,11 @@ async function getBestOfYear(year) {
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
-      console.log(`✅ Cached catalog for ${year} (${results.length} movies)`);
+      log(`✅ Cached catalog for ${year} (${results.length} movies)`);
 
       return results;
     } catch (error) {
-      console.error('Error fetching best of year:', error.message);
+      logError('Error fetching best of year:', error.message);
       return [];
     } finally {
       inFlightPromises.delete(cacheKey);

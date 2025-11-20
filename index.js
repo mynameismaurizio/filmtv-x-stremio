@@ -1,6 +1,26 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper-safe');
 
+// Logging helper with timestamps
+function getTimestamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function log(...args) {
+  console.log(`[${getTimestamp()}]`, ...args);
+}
+
+function logError(...args) {
+  console.error(`[${getTimestamp()}]`, ...args);
+}
+
 // Available predefined catalogs (years and decades)
 const PREDEFINED_CATALOGS = [
   // Recent years
@@ -165,7 +185,7 @@ function parseCustomCatalogs(customConfig) {
         extra: [{ name: 'skip', isRequired: false }]
       });
     } catch (e) {
-      console.error('Error parsing custom catalog:', line, e);
+      logError('Error parsing custom catalog:', line, e);
     }
   }
 
@@ -183,14 +203,14 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 
   // Set the TMDB API key from user configuration
   if (config && config.tmdb_api_key) {
-    console.log(`✓ Using TMDB API key from config for catalog ${id}`);
+    log(`✓ Using TMDB API key from config for catalog ${id}`);
     setTMDBApiKey(config.tmdb_api_key);
   } else if (process.env.TMDB_API_KEY) {
-    console.log(`✓ Using TMDB API key from environment for catalog ${id}`);
+    log(`✓ Using TMDB API key from environment for catalog ${id}`);
     setTMDBApiKey(process.env.TMDB_API_KEY);
   } else {
     // If no config and no env var, return error
-    console.error(`✗ No TMDB API key found for catalog ${id}`);
+    logError(`✗ No TMDB API key found for catalog ${id}`);
     return { metas: [] };
   }
 
@@ -221,7 +241,7 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     }
 
     if (!yearFilter) {
-      console.error(`✗ Unknown catalog ID: ${id}`);
+      logError(`✗ Unknown catalog ID: ${id}`);
       return { metas: [] };
     }
 
@@ -268,20 +288,20 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       const genreFilter = filterMap[extra.genre] || extra.genre.toLowerCase().replace(/ /g, '-');
       const filterString = `${genreFilter}/${yearFilter}`;
 
-      console.log(`✓ Fetching filtered catalog with filter: ${extra.genre} + ${yearFilter} -> ${filterString}`);
+      log(`✓ Fetching filtered catalog with filter: ${extra.genre} + ${yearFilter} -> ${filterString}`);
       const movies = await getFilteredList(filterString);
-      console.log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
+      log(`✓ Returning ${movies.length} filtered movies for catalog ${id}`);
       return { metas: movies };
     } else {
       // No genre/country filter - return all movies for the year/decade
-      console.log(`✓ Fetching catalog for: ${yearFilter}`);
+      log(`✓ Fetching catalog for: ${yearFilter}`);
       const movies = await getFilteredList(yearFilter);
-      console.log(`✓ Returning ${movies.length} movies for catalog ${id}`);
+      log(`✓ Returning ${movies.length} movies for catalog ${id}`);
       return { metas: movies };
     }
   } catch (error) {
-    console.error(`✗ Error in catalog handler for ${id}:`, error.message);
-    console.error('Stack trace:', error.stack);
+    logError(`✗ Error in catalog handler for ${id}:`, error.message);
+    logError('Stack trace:', error.stack);
     return { metas: [] };
   }
 });
@@ -299,7 +319,7 @@ if (require.main === module) {
 
   serveHTTP(builder.getInterface(), { port: PORT });
 
-  console.log(`FilmTV.it addon running on http://localhost:${PORT}`);
-  console.log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-  console.log(`Configuration page: https://cacaspruz-filmtv-x-stremio.hf.space/configure.html`);
+  log(`FilmTV.it addon running on http://localhost:${PORT}`);
+  log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+  log(`Configuration page: https://cacaspruz-filmtv-x-stremio.hf.space/configure.html`);
 }
