@@ -32,6 +32,7 @@ Or manually:
 - Browse best movies by year (2023, 2024, 2025)
 - Movie metadata including ratings, genres, directors, and cast
 - Automatic caching to reduce server load
+- Rate limiting to prevent abuse
 
 ## Source Code
 

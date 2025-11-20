@@ -1,5 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk');
-const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper');
+const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper-safe');
 
 // Available predefined catalogs (years and decades)
 const PREDEFINED_CATALOGS = [
