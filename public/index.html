@@ -587,7 +587,7 @@
           </div>
           
           <button type="submit" class="btn" id="submit-btn" style="width: 100%;">
-            ✅ Salva Configurazione
+            📥 Installa su Stremio
           </button>
         </form>
         
@@ -639,7 +639,7 @@
       e.preventDefault();
       
       submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ Salvataggio...';
+      submitBtn.textContent = '⏳ Installazione...';
       
       const formData = new FormData(form);
       const config = {};
@@ -660,12 +660,26 @@
         });
         
         if (response.ok) {
-          showAlert('✅ Configurazione salvata con successo! Puoi ora utilizzare l\'addon in Stremio.', 'success');
+          // Get the manifest URL
+          const manifestUrl = window.location.origin + '/manifest.json';
+          
+          // Install addon in Stremio
+          const stremioUrl = `stremio://install-addon?url=${encodeURIComponent(manifestUrl)}`;
+          
+          showAlert('✅ Configurazione salvata! Aprendo Stremio per installare l\'addon...', 'success');
+          
+          // Try to open Stremio
+          window.location.href = stremioUrl;
+          
+          // Fallback: show manual installation instructions
+          setTimeout(() => {
+            showAlert('Se Stremio non si apre automaticamente:<br>1. Apri Stremio<br>2. Vai su Addons → Community Addons<br>3. Incolla: ' + manifestUrl, 'info');
+          }, 2000);
           
           if (returnTo) {
             setTimeout(() => {
               window.location.href = returnTo;
-            }, 2000);
+            }, 5000);
           }
         } else {
           const error = await response.text();
@@ -675,7 +689,7 @@
         showAlert(`❌ Errore di connessione: ${error.message}`, 'error');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '✅ Salva Configurazione';
+        submitBtn.textContent = '📥 Installa su Stremio';
       }
     });
     
