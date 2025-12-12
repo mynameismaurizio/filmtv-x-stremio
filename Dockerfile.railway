@@ -1,0 +1,20 @@
+FROM node:20-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first (for better caching)
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy application files
+COPY . .
+
+# Expose port (Railway sets PORT automatically via env var)
+EXPOSE ${PORT:-10000}
+
+# Start the addon
+CMD ["npm", "start"]
+

@@ -29,11 +29,14 @@ let TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
-// Rate limiting configuration
-const REQUEST_DELAY = 500; // 500ms delay between requests
-const MAX_CONCURRENT_REQUESTS = 3;
+// Rate limiting configuration - AGGRESSIVE to prevent resource exhaustion
+const REQUEST_DELAY = 1000; // 1 second delay between requests (increased from 500ms)
+const MAX_CONCURRENT_REQUESTS = 1; // Only 1 request at a time (reduced from 3)
+const MAX_CONCURRENT_CATALOGS = 2; // Max 2 catalog requests processing simultaneously
 let activeRequests = 0;
+let activeCatalogRequests = 0;
 const requestQueue = [];
+const catalogQueue = [];
 
 // Function to set TMDB API key from user config
 function setTMDBApiKey(apiKey) {
@@ -50,7 +53,7 @@ const catalogCache = new Map();
 // In-flight promises to prevent duplicate concurrent requests
 const inFlightPromises = new Map();
 
-// Rate limiting helper
+// Rate limiting helper for HTTP requests
 async function rateLimitedRequest(fn) {
   return new Promise((resolve, reject) => {
     const execute = async () => {
@@ -70,6 +73,34 @@ async function rateLimitedRequest(fn) {
         activeRequests--;
         if (requestQueue.length > 0) {
           const next = requestQueue.shift();
+          next();
+        }
+      }
+    };
+
+    execute();
+  });
+}
+
+// Rate limiting helper for catalog requests (prevents too many catalogs processing at once)
+async function rateLimitedCatalogRequest(fn) {
+  return new Promise((resolve, reject) => {
+    const execute = async () => {
+      if (activeCatalogRequests >= MAX_CONCURRENT_CATALOGS) {
+        catalogQueue.push(execute);
+        return;
+      }
+
+      activeCatalogRequests++;
+      try {
+        const result = await fn();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      } finally {
+        activeCatalogRequests--;
+        if (catalogQueue.length > 0) {
+          const next = catalogQueue.shift();
           next();
         }
       }
@@ -100,7 +131,7 @@ async function fetchWithCache(url) {
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1'
         },
-        timeout: 10000, // 10 second timeout
+        timeout: 8000, // 8 second timeout (reduced to prevent resource exhaustion)
         maxRedirects: 5
       });
 
@@ -134,7 +165,7 @@ async function fetchFromTMDB(endpoint, params = {}) {
           language: 'it-IT',
           ...params
         },
-        timeout: 10000,
+        timeout: 8000, // 8 second timeout (reduced to prevent resource exhaustion)
         headers: {
           'Accept': 'application/json'
         }
@@ -390,16 +421,20 @@ async function getFilteredList(filters) {
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (data && data.length > 0 && now - timestamp < CACHE_DURATION) {
+      log(`✓ Cache hit for ${filters}`);
       return data;
     }
   }
 
   // Check if request is in flight
   if (inFlightPromises.has(cacheKey)) {
+    log(`⏳ Waiting for in-flight request for ${filters}`);
     return inFlightPromises.get(cacheKey);
   }
 
-  const promise = (async () => {
+  // Wrap in rate limiter to prevent too many catalogs processing simultaneously
+  return rateLimitedCatalogRequest(async () => {
+    const promise = (async () => {
     try {
       log(`🔄 Fetching fresh catalog for filters: ${filters}`);
 
@@ -569,15 +604,19 @@ async function getBestOfYear(year) {
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (data && data.length > 0 && now - timestamp < CACHE_DURATION) {
+      log(`✓ Cache hit for ${year}`);
       return data;
     }
   }
 
   if (inFlightPromises.has(cacheKey)) {
+    log(`⏳ Waiting for in-flight request for ${year}`);
     return inFlightPromises.get(cacheKey);
   }
 
-  const promise = (async () => {
+  // Wrap in rate limiter to prevent too many catalogs processing simultaneously
+  return rateLimitedCatalogRequest(async () => {
+    const promise = (async () => {
     try {
       log(`🔄 Fetching fresh catalog for ${year}`);
 
