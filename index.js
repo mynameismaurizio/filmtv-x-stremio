@@ -319,6 +319,17 @@ if (require.main === module) {
   const { getRouter } = require('stremio-addon-sdk');
   const app = express();
 
+  // Health check endpoint for Railway
+  app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'filmtv-stremio-addon' });
+  });
+
+  // Log all requests for debugging
+  app.use((req, res, next) => {
+    log(`Request: ${req.method} ${req.path}`);
+    next();
+  });
+
   // Use the addon router
   app.use('/', getRouter(builder.getInterface()));
 
@@ -326,6 +337,7 @@ if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {
     log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
     log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`Health check: http://0.0.0.0:${PORT}/health`);
     log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
   });
 }
