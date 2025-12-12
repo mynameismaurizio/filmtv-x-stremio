@@ -317,9 +317,13 @@ module.exports = builder.getInterface();
 if (require.main === module) {
   const { serveHTTP } = require('stremio-addon-sdk');
 
-  serveHTTP(builder.getInterface(), { port: PORT });
+  // Listen on 0.0.0.0 to be accessible from outside the container
+  serveHTTP(builder.getInterface(), { 
+    port: PORT,
+    host: '0.0.0.0'  // Required for Railway and other cloud services
+  });
 
-  log(`FilmTV.it addon running on http://localhost:${PORT}`);
-  log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-  log(`Configuration page: https://cacaspruz-filmtv-x-stremio.hf.space/configure.html`);
+  log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+  log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
 }
