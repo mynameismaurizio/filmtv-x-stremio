@@ -342,10 +342,33 @@ if (require.main === module) {
       return;
     }
     
+    // Root endpoint
+    if (pathname === '/' || pathname === '') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>FilmTV Stremio Addon</title></head>
+        <body>
+          <h1>FilmTV.it Stremio Addon</h1>
+          <p>Status: ✅ Running</p>
+          <p><a href="/manifest.json">Manifest</a></p>
+          <p><a href="/health">Health Check</a></p>
+        </body>
+        </html>
+      `);
+      return;
+    }
+    
     // Health check
     if (pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', service: 'filmtv-stremio-addon' }));
+      res.end(JSON.stringify({ 
+        status: 'ok', 
+        service: 'filmtv-stremio-addon',
+        port: PORT,
+        timestamp: new Date().toISOString()
+      }));
       return;
     }
     
@@ -429,14 +452,24 @@ if (require.main === module) {
   });
   
   server.listen(PORT, '0.0.0.0', () => {
-    log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
-    log(`Health check: http://0.0.0.0:${PORT}/health`);
-    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+    log(`✅ FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+    log(`✅ Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`✅ Health check: http://0.0.0.0:${PORT}/health`);
+    log(`✅ Server listening on all interfaces (0.0.0.0)`);
+    log(`✅ PORT environment variable: ${process.env.PORT || 'not set'}`);
+    log(`✅ Addon ready! Configure TMDB API key in Stremio when installing.`);
   });
   
   // Handle server errors
   server.on('error', (error) => {
-    logError('Server error:', error);
+    logError('❌ Server error:', error);
+    logError('Error details:', error.message);
+    logError('Error stack:', error.stack);
+  });
+  
+  // Log when server is ready
+  server.on('listening', () => {
+    const addr = server.address();
+    log(`✅ Server is listening on ${addr.address}:${addr.port}`);
   });
 }
