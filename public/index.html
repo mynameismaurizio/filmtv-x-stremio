@@ -9,7 +9,7 @@
   <meta name="title" content="FilmTV.it - Stremio Addon | I Migliori Film Curati">
   <meta name="description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB per poster e metadata di alta qualità.">
   <meta name="keywords" content="stremio, addon, filmtv, film, cinema, tmdb, streaming, italia">
-  <meta name="author" content="FilmTV.it Stremio Addon">
+  <meta name="author" content="FilmTV.it x Stremio">
   <meta name="robots" content="index, follow">
   <meta name="language" content="Italian">
   <meta name="revisit-after" content="7 days">
@@ -22,8 +22,8 @@
   <meta property="og:image" content="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="FilmTV.it Stremio Addon - I Migliori Film">
-  <meta property="og:site_name" content="FilmTV.it Stremio Addon">
+  <meta property="og:image:alt" content="FilmTV.it x Stremio - I Migliori Film">
+  <meta property="og:site_name" content="FilmTV.it x Stremio">
   <meta property="og:locale" content="it_IT">
   
   <!-- Twitter -->
@@ -32,7 +32,7 @@
   <meta name="twitter:title" content="FilmTV.it - Stremio Addon | I Migliori Film Curati">
   <meta name="twitter:description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png">
-  <meta name="twitter:image:alt" content="FilmTV.it Stremio Addon - I Migliori Film">
+  <meta name="twitter:image:alt" content="FilmTV.it x Stremio - I Migliori Film">
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png">
@@ -46,7 +46,7 @@
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "FilmTV.it Stremio Addon",
+    "name": "FilmTV.it x Stremio",
     "description": "Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB per poster e metadata di alta qualità.",
     "url": "https://filmtv-x-stremio-production.up.railway.app/",
     "applicationCategory": "MultimediaApplication",
@@ -75,123 +75,92 @@
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #333;
+      background: url('https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: #e5e7eb;
       min-height: 100vh;
+      padding: 20px;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 0;
+      pointer-events: none;
     }
     
     .container {
-      background: white;
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .card {
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(10px);
       border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 800px;
-      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       padding: 40px;
-      text-align: center;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
     
     .logo {
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 30px;
+      width: 150px;
+      height: auto;
       border-radius: 20px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      flex-shrink: 0;
+      object-fit: contain;
+      margin: 0 auto;
+    }
+    
+    .header-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     
     h1 {
       font-size: 2.5em;
-      margin-bottom: 15px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      margin: 0;
+      color: #f9fafb;
+      font-weight: 700;
     }
     
     .subtitle {
       font-size: 1.2em;
-      color: #666;
-      margin-bottom: 30px;
-    }
-    
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin: 40px 0;
-    }
-    
-    .feature {
-      padding: 20px;
-      background: #f8f9fa;
-      border-radius: 10px;
-      transition: transform 0.3s;
-    }
-    
-    .feature:hover {
-      transform: translateY(-5px);
-    }
-    
-    .feature-icon {
-      font-size: 2em;
-      margin-bottom: 10px;
-    }
-    
-    .feature h3 {
-      margin-bottom: 10px;
-      color: #667eea;
-    }
-    
-    .cta {
-      margin-top: 40px;
-    }
-    
-    .btn {
-      display: inline-block;
-      padding: 15px 30px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 10px;
-      font-weight: bold;
-      font-size: 1.1em;
-      transition: transform 0.3s, box-shadow 0.3s;
-      margin: 10px;
-    }
-    
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-    }
-    
-    .btn-secondary {
-      background: white;
-      color: #667eea;
-      border: 2px solid #667eea;
-    }
-    
-    .btn-secondary:hover {
-      background: #f8f9fa;
-    }
-    
-    .links {
-      margin-top: 30px;
-      padding-top: 30px;
-      border-top: 1px solid #eee;
-    }
-    
-    .links a {
-      color: #667eea;
-      text-decoration: none;
-      margin: 0 15px;
-      transition: color 0.3s;
-    }
-    
-    .links a:hover {
-      color: #764ba2;
+      color: #9ca3af;
+      margin: 0;
     }
     
     .status {
@@ -201,53 +170,527 @@
       color: white;
       border-radius: 20px;
       font-size: 0.9em;
+      align-self: flex-start;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .tab {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      font-size: 1em;
+      font-weight: 600;
+      color: #9ca3af;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+      margin-bottom: -2px;
+    }
+    
+    .tab:hover {
+      color: #e5e7eb;
+    }
+    
+    .tab.active {
+      color: #f9fafb;
+      border-bottom-color: #f9fafb;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    @media (max-width: 900px) {
+      .features {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
+    }
+    
+    .feature {
+      padding: 20px;
+      background: rgba(31, 41, 55, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      transition: transform 0.3s;
+    }
+    
+    .feature:hover {
+      transform: translateY(-5px);
+      background: rgba(31, 41, 55, 1);
+    }
+    
+    .feature-icon {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    
+    .feature h3 {
+      margin-bottom: 10px;
+      color: #f9fafb;
+      font-size: 1.1em;
+      white-space: nowrap;
+    }
+    
+    .feature p {
+      color: #9ca3af;
+    }
+    
+    .cta {
+      margin-top: 30px;
+      text-align: center;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 15px 30px;
+      background: #f9fafb;
+      color: #111827;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 1.1em;
+      transition: all 0.3s;
+      margin: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn:hover {
+      background: #e5e7eb;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(249, 250, 251, 0.3);
+    }
+    
+    .btn-secondary {
+      background: transparent;
+      color: #f9fafb;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #f9fafb;
+      font-size: 0.95em;
+    }
+    
+    .required {
+      color: #ef4444;
+    }
+    
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      font-size: 0.95em;
+      font-family: inherit;
+      transition: all 0.3s;
+      background: rgba(31, 41, 55, 0.8);
+      color: #f9fafb;
+    }
+    
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #f9fafb;
+      box-shadow: 0 0 0 3px rgba(249, 250, 251, 0.1);
+      background: rgba(31, 41, 55, 1);
+    }
+    
+    input[type="text"]::placeholder,
+    textarea::placeholder {
+      color: #6b7280;
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+    
+    .help-text {
+      font-size: 0.85em;
+      color: #9ca3af;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+    
+    .help-text a {
+      color: #f9fafb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .help-text a:hover {
+      text-decoration: underline;
+    }
+    
+    .help-text code {
+      background: rgba(31, 41, 55, 0.8);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #f9fafb;
+    }
+    
+    .alert {
+      padding: 12px 15px;
+      border-radius: 10px;
       margin-bottom: 20px;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+    
+    .alert-info {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .alert-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .alert-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .steps {
+      background: rgba(31, 41, 55, 0.8);
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+      font-size: 0.85em;
+      line-height: 1.8;
+      color: #e5e7eb;
+    }
+    
+    .steps ol {
+      margin-left: 20px;
+    }
+    
+    .steps li {
+      margin-bottom: 5px;
+    }
+    
+    .optional-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #9ca3af;
+      border-radius: 5px;
+      font-size: 0.75em;
+      font-weight: normal;
+      margin-left: 5px;
+    }
+    
+    .links {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+    
+    .links a {
+      color: #e5e7eb;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: 600;
+      transition: color 0.3s;
+    }
+    
+    .links a:hover {
+      color: #f9fafb;
+    }
+    
+    .disclaimer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+    
+    .disclaimer p {
+      color: #9ca3af;
+      font-size: 0.85em;
+      margin: 0;
+    }
+    
+    @media (max-width: 600px) {
+      .card {
+        padding: 25px;
+      }
+      
+      h1 {
+        font-size: 1.8em;
+      }
+      
+      .tabs {
+        flex-direction: column;
+      }
+      
+      .tab {
+        text-align: left;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <img src="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png" alt="FilmTV.it Logo" class="logo">
-    
-    <span class="status">✅ Online</span>
-    
-    <h1>FilmTV.it Stremio Addon</h1>
-    <p class="subtitle">I Migliori Film Curati da FilmTV.it</p>
-    
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">📽️</div>
-        <h3>Film per Anno</h3>
-        <p>2023, 2024, 2025 e decenni</p>
+    <div class="card">
+      <div class="header">
+        <div class="logo-container">
+          <img src="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png" alt="FilmTV.it Logo" class="logo">
+        </div>
+        
+        <div class="header-content">
+          <span class="status">✅ Online</span>
+          <h1>FilmTV.it x Stremio</h1>
+          <p class="subtitle">I Migliori Film Curati da FilmTV.it</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="feature-icon">🎬</div>
-        <h3>Poster TMDB</h3>
-        <p>Metadata di alta qualità</p>
+      
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('home')">Home</button>
+        <button class="tab" onclick="showTab('configure')">Configura</button>
       </div>
-      <div class="feature">
-        <div class="feature-icon">🇮🇹</div>
-        <h3>Supporto Italiano</h3>
-        <p>Liste curate in italiano</p>
+      
+      <!-- Home Tab -->
+      <div id="home-tab" class="tab-content active">
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">📽️</div>
+            <h3>Film per Anno</h3>
+            <p>2023, 2024, 2025 e decenni</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🇮🇹</div>
+            <h3>Supporto Italiano</h3>
+            <p>Liste curate in italiano</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">⭐</div>
+            <h3>Rating FilmTV</h3>
+            <p>Valutazioni e descrizioni</p>
+          </div>
+        </div>
+        
+        <div class="cta">
+          <button onclick="showTab('configure'); document.querySelectorAll('.tab')[1].classList.add('active'); document.querySelectorAll('.tab')[0].classList.remove('active');" class="btn">
+            ⚙️ Configura Addon
+          </button>
+        </div>
+        
+        <div class="links">
+          <a href="/manifest.json">Manifest</a>
+          <a href="https://www.filmtv.it" target="_blank">FilmTV.it</a>
+          <a href="https://github.com/mynameismaurizio/filmtv-x-stremio" target="_blank">GitHub</a>
+        </div>
+        
+        <div class="disclaimer">
+          <p>⚠️ Questo addon non è realizzato o affiliato con FilmTV.it</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="feature-icon">⭐</div>
-        <h3>Rating FilmTV</h3>
-        <p>Valutazioni e descrizioni</p>
+      
+      <!-- Configure Tab -->
+      <div id="configure-tab" class="tab-content">
+        <div id="alert-container"></div>
+        
+        <form id="configure-form" method="POST" action="/configure">
+          <div class="form-group">
+            <label for="tmdb_api_key">
+              🔑 Chiave API TMDB <span class="required">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="tmdb_api_key" 
+              name="tmdb_api_key" 
+              placeholder="Inserisci la tua chiave API TMDB (32 caratteri)"
+              required
+              pattern="[a-f0-9]{32}"
+              maxlength="32"
+            >
+            <div class="help-text">
+              <div class="alert alert-info" style="margin-top: 10px; margin-bottom: 0;">
+                <strong>📝 Come ottenere la chiave:</strong>
+                <div class="steps">
+                  <ol>
+                    <li>Vai su <a href="https://www.themoviedb.org" target="_blank">themoviedb.org</a></li>
+                    <li>Crea un account gratuito</li>
+                    <li>Vai su <strong>Impostazioni → API</strong></li>
+                    <li>Richiedi una chiave API</li>
+                    <li>Copia la chiave da <strong>"API Key (v3 auth)"</strong></li>
+                  </ol>
+                </div>
+                <div style="margin-top: 10px;">
+                  ✅ La chiave deve essere <strong>32 caratteri esadecimali</strong><br>
+                  ❌ Senza questa chiave, l'addon <strong>NON funzionerà</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="custom_catalogs">
+              ✨ Cataloghi Personalizzati <span class="optional-badge">Opzionale</span>
+            </label>
+            <textarea 
+              id="custom_catalogs" 
+              name="custom_catalogs" 
+              placeholder="Esempio: Film Azione 2024|anno-2024|genere-azione"
+            ></textarea>
+            <div class="help-text">
+              <strong>Formato:</strong> Nome Catalogo|filtro-1|filtro-2<br>
+              Separa più cataloghi con <code>;</code><br>
+              <a href="#" onclick="event.preventDefault(); document.getElementById('example-toggle').style.display = document.getElementById('example-toggle').style.display === 'none' ? 'block' : 'none'; return false;">Mostra esempi →</a>
+              <div id="example-toggle" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 0.9em;">
+                <strong>Esempi:</strong><br>
+                • Film Azione 2024|anno-2024|genere-azione<br>
+                • Horror Italiani|genere-horror|paese-italia<br>
+                • Commedie Francesi|genere-commedia|paese-francia<br>
+                • Fantascienza Anni 2010|genere-fantascienza|anni-2010
+              </div>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn" id="submit-btn" style="width: 100%;">
+            ✅ Salva Configurazione
+          </button>
+        </form>
+        
+        <div class="disclaimer">
+          <p>⚠️ Questo addon non è realizzato o affiliato con FilmTV.it</p>
+        </div>
       </div>
-    </div>
-    
-    <div class="cta">
-      <a href="/manifest.json" class="btn">Installa in Stremio</a>
-      <a href="https://github.com/mynameismaurizio/filmtv-x-stremio" class="btn btn-secondary" target="_blank">GitHub</a>
-    </div>
-    
-    <div class="links">
-      <a href="/manifest.json">Manifest</a>
-      <a href="/health">Health Check</a>
-      <a href="https://www.filmtv.it" target="_blank">FilmTV.it</a>
     </div>
   </div>
+  
+  <script>
+    function showTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').classList.add('active');
+      event.target.classList.add('active');
+      
+      // Clear alerts when switching tabs
+      document.getElementById('alert-container').innerHTML = '';
+    }
+    
+    // Check if we're coming from Stremio configure
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('configure') === 'true' || window.location.hash === '#configure') {
+      showTab('configure');
+      document.querySelectorAll('.tab')[1].classList.add('active');
+      document.querySelectorAll('.tab')[0].classList.remove('active');
+    }
+    
+    const form = document.getElementById('configure-form');
+    const alertContainer = document.getElementById('alert-container');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    function showAlert(message, type = 'info') {
+      alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    const returnTo = urlParams.get('returnTo');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Salvataggio...';
+      
+      const formData = new FormData(form);
+      const config = {};
+      
+      for (const [key, value] of formData.entries()) {
+        if (value.trim()) {
+          config[key] = value.trim();
+        }
+      }
+      
+      try {
+        const response = await fetch('/configure', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ config })
+        });
+        
+        if (response.ok) {
+          showAlert('✅ Configurazione salvata con successo! Puoi ora utilizzare l\'addon in Stremio.', 'success');
+          
+          if (returnTo) {
+            setTimeout(() => {
+              window.location.href = returnTo;
+            }, 2000);
+          }
+        } else {
+          const error = await response.text();
+          showAlert(`❌ Errore: ${error}`, 'error');
+        }
+      } catch (error) {
+        showAlert(`❌ Errore di connessione: ${error.message}`, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ Salva Configurazione';
+      }
+    });
+    
+    // Validate TMDB API key format
+    const tmdbInput = document.getElementById('tmdb_api_key');
+    tmdbInput.addEventListener('input', (e) => {
+      const value = e.target.value.trim();
+      if (value.length > 0 && value.length !== 32) {
+        e.target.setCustomValidity('La chiave API TMDB deve essere esattamente 32 caratteri');
+      } else if (value.length === 32 && !/^[a-f0-9]{32}$/i.test(value)) {
+        e.target.setCustomValidity('La chiave API TMDB deve contenere solo caratteri esadecimali (0-9, a-f)');
+      } else {
+        e.target.setCustomValidity('');
+      }
+    });
+  </script>
 </body>
 </html>
-

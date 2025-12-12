@@ -322,6 +322,10 @@ if (require.main === module) {
 
   const app = express();
 
+  // Parse JSON bodies
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // Serve HTML page for root with all SEO meta tags
   app.get('/', (req, res) => {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
@@ -355,6 +359,39 @@ if (require.main === module) {
         res.end(data);
       }
     });
+  });
+
+  // Serve configure page (redirects to home with configure tab)
+  app.get('/configure', (req, res) => {
+    res.redirect('/#configure');
+  });
+
+  // Handle configure POST (Stremio SDK format)
+  app.post('/configure', (req, res) => {
+    try {
+      // Stremio SDK expects config in req.body.config
+      const config = req.body.config || req.body;
+      
+      // Validate TMDB API key if provided
+      if (config.tmdb_api_key) {
+        const apiKey = config.tmdb_api_key.trim();
+        if (apiKey.length !== 32 || !/^[a-f0-9]{32}$/i.test(apiKey)) {
+          return res.status(400).json({ 
+            error: 'La chiave API TMDB deve essere esattamente 32 caratteri esadecimali' 
+          });
+        }
+      }
+      
+      // Return success - Stremio will store the config
+      res.json({ 
+        success: true, 
+        message: 'Configurazione salvata con successo',
+        config: config
+      });
+    } catch (error) {
+      logError('Configure error:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Use Stremio addon router for all other routes
