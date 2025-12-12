@@ -414,6 +414,10 @@ async function scrapeFilmTVList(year) {
 
 // Function to get filtered list from FilmTV
 async function getFilteredList(filters) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:416',message:'getFilteredList entry',data:{filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   const cacheKey = `catalog_${filters}`;
   const now = Date.now();
 
@@ -422,6 +426,9 @@ async function getFilteredList(filters) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (data && data.length > 0 && now - timestamp < CACHE_DURATION) {
       log(`✓ Cache hit for ${filters}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:424',message:'Cache hit',data:{filters,count:data.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       return data;
     }
   }
@@ -429,6 +436,9 @@ async function getFilteredList(filters) {
   // Check if request is in flight
   if (inFlightPromises.has(cacheKey)) {
     log(`⏳ Waiting for in-flight request for ${filters}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:432',message:'Waiting for in-flight',data:{filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return inFlightPromises.get(cacheKey);
   }
 
@@ -583,10 +593,17 @@ async function getFilteredList(filters) {
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
       log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:595',message:'getFilteredList success',data:{filters,resultsCount:results.length,firstResult:results[0]?Object.keys(results[0]):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       return results;
     } catch (error) {
       logError('Error fetching filtered list:', error.message);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:600',message:'getFilteredList error',data:{filters,errorMessage:error.message,errorStack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       return [];
     } finally {
       inFlightPromises.delete(cacheKey);

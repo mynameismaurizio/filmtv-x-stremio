@@ -197,7 +197,14 @@ const builder = new addonBuilder(buildManifest());
 
 // Catalog handler
 builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:199',message:'Catalog handler entry',data:{type,id,extra:JSON.stringify(extra),hasConfig:!!config,configKeys:config?Object.keys(config):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   if (type !== 'movie') {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:202',message:'Non-movie type, returning empty',data:{type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     return { metas: [] };
   }
 
@@ -205,16 +212,29 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   if (config && config.tmdb_api_key) {
     log(`✓ Using TMDB API key from config for catalog ${id}`);
     setTMDBApiKey(config.tmdb_api_key);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:207',message:'Using TMDB key from config',data:{catalogId:id,keyLength:config.tmdb_api_key.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
   } else if (process.env.TMDB_API_KEY) {
     log(`✓ Using TMDB API key from environment for catalog ${id}`);
     setTMDBApiKey(process.env.TMDB_API_KEY);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:210',message:'Using TMDB key from env',data:{catalogId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
   } else {
     // If no config and no env var, return error
     logError(`✗ No TMDB API key found for catalog ${id}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:214',message:'No TMDB key found',data:{catalogId:id,hasConfig:!!config},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     return { metas: [] };
   }
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:217',message:'Starting catalog processing',data:{catalogId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     // Handle custom catalogs
     if (id.startsWith('filmtv-custom-')) {
       const filtersEncoded = id.replace('filmtv-custom-', '');
@@ -224,6 +244,9 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       const padding = '='.repeat((4 - filtersBase64.length % 4) % 4);
       const filters = Buffer.from(filtersBase64 + padding, 'base64').toString('utf-8');
       const movies = await getFilteredList(filters);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:227',message:'Custom catalog result',data:{catalogId:id,moviesCount:movies.length,firstMovie:movies[0]?Object.keys(movies[0]):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return { metas: movies };
     }
 
@@ -297,11 +320,17 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       log(`✓ Fetching catalog for: ${yearFilter}`);
       const movies = await getFilteredList(yearFilter);
       log(`✓ Returning ${movies.length} movies for catalog ${id}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:300',message:'Year catalog result',data:{catalogId:id,yearFilter,moviesCount:movies.length,firstMovie:movies[0]?Object.keys(movies[0]):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return { metas: movies };
     }
   } catch (error) {
     logError(`✗ Error in catalog handler for ${id}:`, error.message);
     logError('Stack trace:', error.stack);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:302',message:'Catalog handler error',data:{catalogId:id,errorMessage:error.message,errorStack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     return { metas: [] };
   }
 });
@@ -392,6 +421,16 @@ if (require.main === module) {
       logError('Configure error:', error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Log all requests for debugging
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/catalog/') || req.path.startsWith('/manifest')) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:398',message:'Request received',data:{method:req.method,path:req.path,query:JSON.stringify(req.query),headers:JSON.stringify(req.headers)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+    }
+    next();
   });
 
   // Use Stremio addon router for all other routes
