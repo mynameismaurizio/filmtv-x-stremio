@@ -315,11 +315,55 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const { getRouter } = require('stremio-addon-sdk');
+  const fs = require('fs');
+  const path = require('path');
 
-  serveHTTP(builder.getInterface(), { port: PORT });
+  const app = express();
 
-  log(`FilmTV.it addon running on port ${PORT}`);
-  log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
-  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  // Serve HTML page for root with all SEO meta tags
+  app.get('/', (req, res) => {
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    fs.readFile(htmlPath, 'utf8', (err, data) => {
+      if (err) {
+        // Fallback HTML with SEO if file doesn't exist
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(`
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FilmTV.it - Stremio Addon | I Migliori Film Curati</title>
+  <meta name="description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB.">
+  <meta property="og:title" content="FilmTV.it - Stremio Addon">
+  <meta property="og:description" content="I Migliori Film Curati da FilmTV.it">
+  <meta property="og:image" content="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://filmtv-x-stremio-production.up.railway.app/">
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 50px;">
+  <h1>FilmTV.it Stremio Addon</h1>
+  <p>✅ Online</p>
+  <p><a href="/manifest.json">Manifest</a></p>
+</body>
+</html>
+        `);
+      } else {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(data);
+      }
+    });
+  });
+
+  // Use Stremio addon router for all other routes
+  app.use('/', getRouter(builder.getInterface()));
+
+  app.listen(PORT, '0.0.0.0', () => {
+    log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`Homepage available at: http://0.0.0.0:${PORT}/`);
+    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  });
 }

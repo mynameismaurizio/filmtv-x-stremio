@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary Meta Tags -->
+  <title>FilmTV.it - Stremio Addon | I Migliori Film Curati</title>
+  <meta name="title" content="FilmTV.it - Stremio Addon | I Migliori Film Curati">
+  <meta name="description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB per poster e metadata di alta qualità.">
+  <meta name="keywords" content="stremio, addon, filmtv, film, cinema, tmdb, streaming, italia">
+  <meta name="author" content="FilmTV.it Stremio Addon">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="Italian">
+  <meta name="revisit-after" content="7 days">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://filmtv-x-stremio-production.up.railway.app/">
+  <meta property="og:title" content="FilmTV.it - Stremio Addon | I Migliori Film Curati">
+  <meta property="og:description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="FilmTV.it Stremio Addon - I Migliori Film">
+  <meta property="og:site_name" content="FilmTV.it Stremio Addon">
+  <meta property="og:locale" content="it_IT">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://filmtv-x-stremio-production.up.railway.app/">
+  <meta name="twitter:title" content="FilmTV.it - Stremio Addon | I Migliori Film Curati">
+  <meta name="twitter:description" content="Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png">
+  <meta name="twitter:image:alt" content="FilmTV.it Stremio Addon - I Migliori Film">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png">
+  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://filmtv-x-stremio-production.up.railway.app/">
+  
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FilmTV.it Stremio Addon",
+    "description": "Sfoglia le liste curate di FilmTV.it con i migliori film per anno, genere e paese. Addon Stremio con integrazione TMDB per poster e metadata di alta qualità.",
+    "url": "https://filmtv-x-stremio-production.up.railway.app/",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Cross-platform",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.5",
+      "ratingCount": "100"
+    },
+    "image": "https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png",
+    "logo": "https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png"
+  }
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      font-size: 1.2em;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 40px 0;
+    }
+    
+    .feature {
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      transition: transform 0.3s;
+    }
+    
+    .feature:hover {
+      transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    
+    .feature h3 {
+      margin-bottom: 10px;
+      color: #667eea;
+    }
+    
+    .cta {
+      margin-top: 40px;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 15px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1.1em;
+      transition: transform 0.3s, box-shadow 0.3s;
+      margin: 10px;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    
+    .btn-secondary:hover {
+      background: #f8f9fa;
+    }
+    
+    .links {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #eee;
+    }
+    
+    .links a {
+      color: #667eea;
+      text-decoration: none;
+      margin: 0 15px;
+      transition: color 0.3s;
+    }
+    
+    .links a:hover {
+      color: #764ba2;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 5px 15px;
+      background: #10b981;
+      color: white;
+      border-radius: 20px;
+      font-size: 0.9em;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png" alt="FilmTV.it Logo" class="logo">
+    
+    <span class="status">✅ Online</span>
+    
+    <h1>FilmTV.it Stremio Addon</h1>
+    <p class="subtitle">I Migliori Film Curati da FilmTV.it</p>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">📽️</div>
+        <h3>Film per Anno</h3>
+        <p>2023, 2024, 2025 e decenni</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎬</div>
+        <h3>Poster TMDB</h3>
+        <p>Metadata di alta qualità</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🇮🇹</div>
+        <h3>Supporto Italiano</h3>
+        <p>Liste curate in italiano</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⭐</div>
+        <h3>Rating FilmTV</h3>
+        <p>Valutazioni e descrizioni</p>
+      </div>
+    </div>
+    
+    <div class="cta">
+      <a href="/manifest.json" class="btn">Installa in Stremio</a>
+      <a href="https://github.com/mynameismaurizio/filmtv-x-stremio" class="btn btn-secondary" target="_blank">GitHub</a>
+    </div>
+    
+    <div class="links">
+      <a href="/manifest.json">Manifest</a>
+      <a href="/health">Health Check</a>
+      <a href="https://www.filmtv.it" target="_blank">FilmTV.it</a>
+    </div>
+  </div>
+</body>
+</html>
+
