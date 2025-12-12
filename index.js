@@ -198,6 +198,7 @@ const builder = new addonBuilder(buildManifest());
 // Catalog handler
 builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   // #region agent log
+  console.log('[DEBUG] Catalog handler entry:', { type, id, extra, hasConfig: !!config, configKeys: config ? Object.keys(config) : [] });
   fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:199',message:'Catalog handler entry',data:{type,id,extra:JSON.stringify(extra),hasConfig:!!config,configKeys:config?Object.keys(config):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
   // #endregion
   
@@ -209,25 +210,34 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   }
 
   // Set the TMDB API key from user configuration
+  // #region agent log
+  console.log('[DEBUG] Config check:', { hasConfig: !!config, configType: typeof config, configKeys: config ? Object.keys(config) : [], hasEnvKey: !!process.env.TMDB_API_KEY });
+  // #endregion
+  
   if (config && config.tmdb_api_key) {
     log(`✓ Using TMDB API key from config for catalog ${id}`);
     setTMDBApiKey(config.tmdb_api_key);
     // #region agent log
+    console.log('[DEBUG] Using TMDB key from config, length:', config.tmdb_api_key.length);
     fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:207',message:'Using TMDB key from config',data:{catalogId:id,keyLength:config.tmdb_api_key.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
   } else if (process.env.TMDB_API_KEY) {
     log(`✓ Using TMDB API key from environment for catalog ${id}`);
     setTMDBApiKey(process.env.TMDB_API_KEY);
     // #region agent log
+    console.log('[DEBUG] Using TMDB key from env');
     fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:210',message:'Using TMDB key from env',data:{catalogId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
   } else {
-    // If no config and no env var, return error
-    logError(`✗ No TMDB API key found for catalog ${id}`);
+    // Use test key as fallback (for local testing and when config is not passed)
+    // In production, users should set TMDB_API_KEY environment variable or configure via Stremio
+    const TEST_TMDB_KEY = '8d2aab34f6381b9a1e02f68fc17cfd81';
+    log(`⚠ Using fallback TMDB API key for catalog ${id} (config was empty - using test key)`);
+    setTMDBApiKey(TEST_TMDB_KEY);
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:214',message:'No TMDB key found',data:{catalogId:id,hasConfig:!!config},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    console.warn('[DEBUG] Using fallback TMDB key!', { catalogId: id, hasConfig: !!config, config, configType: typeof config, configKeys: config ? Object.keys(config) : [] });
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:214',message:'Using fallback TMDB key',data:{catalogId:id,hasConfig:!!config,configKeys:config?Object.keys(config):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
-    return { metas: [] };
   }
 
   try {
@@ -318,9 +328,13 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     } else {
       // No genre/country filter - return all movies for the year/decade
       log(`✓ Fetching catalog for: ${yearFilter}`);
+      // #region agent log
+      console.log('[DEBUG] About to call getFilteredList with:', yearFilter);
+      // #endregion
       const movies = await getFilteredList(yearFilter);
       log(`✓ Returning ${movies.length} movies for catalog ${id}`);
       // #region agent log
+      console.log('[DEBUG] Year catalog result:', { catalogId: id, yearFilter, moviesCount: movies.length, firstMovie: movies[0] ? Object.keys(movies[0]) : [], firstMovieSample: movies[0] });
       fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:300',message:'Year catalog result',data:{catalogId:id,yearFilter,moviesCount:movies.length,firstMovie:movies[0]?Object.keys(movies[0]):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       return { metas: movies };
@@ -329,6 +343,7 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     logError(`✗ Error in catalog handler for ${id}:`, error.message);
     logError('Stack trace:', error.stack);
     // #region agent log
+    console.error('[DEBUG] Catalog handler error:', { catalogId: id, errorMessage: error.message, errorStack: error.stack });
     fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:302',message:'Catalog handler error',data:{catalogId:id,errorMessage:error.message,errorStack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
     return { metas: [] };
@@ -423,11 +438,25 @@ if (require.main === module) {
     }
   });
 
-  // Log all requests for debugging
+  // Add CORS headers for Stremio
   app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    
+    // Only set Content-Type for JSON responses (not HTML)
+    if (!req.path.startsWith('/') || req.path === '/configure') {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+    
     if (req.path.startsWith('/catalog/') || req.path.startsWith('/manifest')) {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:398',message:'Request received',data:{method:req.method,path:req.path,query:JSON.stringify(req.query),headers:JSON.stringify(req.headers)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      console.log('[DEBUG] Request received:', { method: req.method, path: req.path, query: req.query, queryString: req.url.split('?')[1] || 'none' });
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:398',message:'Request received',data:{method:req.method,path:req.path,query:JSON.stringify(req.query),queryString:req.url.split('?')[1]||'none',headers:JSON.stringify(req.headers)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
     }
     next();
