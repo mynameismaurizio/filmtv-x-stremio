@@ -195,8 +195,8 @@ function parseCustomCatalogs(customConfig) {
 // Create builder with default manifest
 const builder = new addonBuilder(buildManifest());
 
-// Define catalog handler function
-const catalogHandler = async ({ type, id, extra, config }) => {
+// Catalog handler
+builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   if (type !== 'movie') {
     return { metas: [] };
   }
@@ -304,10 +304,7 @@ const catalogHandler = async ({ type, id, extra, config }) => {
     logError('Stack trace:', error.stack);
     return { metas: [] };
   }
-};
-
-// Register the handler with the builder
-builder.defineCatalogHandler(catalogHandler);
+});
 
 // Meta handler removed - Stremio will use catalog descriptions
 // This ensures the FilmTV ratings and descriptions persist when viewing movie details
@@ -318,158 +315,11 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const http = require('http');
-  const url = require('url');
-  const querystring = require('querystring');
-  
-  const addonInterface = builder.getInterface();
-  
-  const server = http.createServer(async (req, res) => {
-    const parsedUrl = url.parse(req.url, true);
-    const pathname = parsedUrl.pathname;
-    
-    log(`Request: ${req.method} ${pathname}`);
-    
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    // Handle OPTIONS requests
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
-    
-    // Root endpoint
-    if (pathname === '/' || pathname === '') {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>FilmTV Stremio Addon</title></head>
-        <body>
-          <h1>FilmTV.it Stremio Addon</h1>
-          <p>Status: ✅ Running</p>
-          <p><a href="/manifest.json">Manifest</a></p>
-          <p><a href="/health">Health Check</a></p>
-        </body>
-        </html>
-      `);
-      return;
-    }
-    
-    // Health check
-    if (pathname === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ 
-        status: 'ok', 
-        service: 'filmtv-stremio-addon',
-        port: PORT,
-        timestamp: new Date().toISOString()
-      }));
-      return;
-    }
-    
-    // Handle manifest
-    if (pathname === '/manifest.json') {
-      try {
-        const manifest = addonInterface.manifest;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(manifest));
-      } catch (error) {
-        logError('Manifest error:', error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message }));
-      }
-      return;
-    }
-    
-    // Handle catalog requests
-    if (pathname.startsWith('/catalog/')) {
-      try {
-        const parts = pathname.split('/').filter(p => p);
-        const type = parts[1]; // 'movie'
-        const id = parts[2]?.replace('.json', '') || '';
-        
-        // Parse query params for extra and config
-        const extra = {};
-        const config = {};
-        
-        // Parse query string
-        if (parsedUrl.query) {
-          Object.keys(parsedUrl.query).forEach(key => {
-            if (key === 'tmdb_api_key') {
-              config.tmdb_api_key = parsedUrl.query[key];
-            } else {
-              extra[key] = parsedUrl.query[key];
-            }
-          });
-        }
-        
-        // Get body if POST
-        let body = '';
-        if (req.method === 'POST') {
-          req.on('data', chunk => { body += chunk.toString(); });
-          await new Promise(resolve => req.on('end', resolve));
-          
-          if (body) {
-            try {
-              const bodyData = JSON.parse(body);
-              if (bodyData.config) Object.assign(config, bodyData.config);
-              if (bodyData.extra) Object.assign(extra, bodyData.extra);
-            } catch (e) {
-              // Ignore parse errors
-            }
-          }
-        }
-        
-        // Call the catalog handler directly
-        let result = { metas: [] };
-        
-        try {
-          result = await catalogHandler({ type, id, extra, config });
-        } catch (handlerError) {
-          logError('Handler error:', handlerError);
-          result = { metas: [] };
-        }
-        
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result || { metas: [] }));
-      } catch (error) {
-        logError('Catalog error:', error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message }));
-      }
-      return;
-    }
-    
-    // 404 for everything else
-    log(`404: ${req.method} ${pathname}`);
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
-  });
-  
-  server.listen(PORT, '0.0.0.0', () => {
-    log(`✅ FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-    log(`✅ Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
-    log(`✅ Health check: http://0.0.0.0:${PORT}/health`);
-    log(`✅ Server listening on all interfaces (0.0.0.0)`);
-    log(`✅ PORT environment variable: ${process.env.PORT || 'not set'}`);
-    log(`✅ Addon ready! Configure TMDB API key in Stremio when installing.`);
-  });
-  
-  // Handle server errors
-  server.on('error', (error) => {
-    logError('❌ Server error:', error);
-    logError('Error details:', error.message);
-    logError('Error stack:', error.stack);
-  });
-  
-  // Log when server is ready
-  server.on('listening', () => {
-    const addr = server.address();
-    log(`✅ Server is listening on ${addr.address}:${addr.port}`);
-  });
+  const { serveHTTP } = require('stremio-addon-sdk');
+
+  serveHTTP(builder.getInterface(), { port: PORT });
+
+  log(`FilmTV.it addon running on port ${PORT}`);
+  log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
 }
