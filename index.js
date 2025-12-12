@@ -319,6 +319,10 @@ if (require.main === module) {
   const { getRouter } = require('stremio-addon-sdk');
   const app = express();
 
+  // Parse JSON bodies
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // Health check endpoint for Railway
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', service: 'filmtv-stremio-addon' });
@@ -330,8 +334,21 @@ if (require.main === module) {
     next();
   });
 
-  // Use the addon router
-  app.use('/', getRouter(builder.getInterface()));
+  // Use the addon router - this handles all Stremio addon routes
+  const addonRouter = getRouter(builder.getInterface());
+  app.use('/', addonRouter);
+
+  // Error handler
+  app.use((err, req, res, next) => {
+    logError('Express error:', err);
+    res.status(500).json({ error: err.message });
+  });
+
+  // 404 handler
+  app.use((req, res) => {
+    log(`404: ${req.method} ${req.path}`);
+    res.status(404).json({ error: 'Not found' });
+  });
 
   // Start server on 0.0.0.0 to be accessible from outside
   app.listen(PORT, '0.0.0.0', () => {
