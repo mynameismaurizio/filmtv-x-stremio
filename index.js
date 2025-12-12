@@ -315,15 +315,17 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const { getRouter } = require('stremio-addon-sdk');
+  const app = express();
 
-  // Listen on 0.0.0.0 to be accessible from outside the container
-  serveHTTP(builder.getInterface(), { 
-    port: PORT,
-    host: '0.0.0.0'  // Required for Railway and other cloud services
+  // Use the addon router
+  app.use('/', getRouter(builder.getInterface()));
+
+  // Start server on 0.0.0.0 to be accessible from outside
+  app.listen(PORT, '0.0.0.0', () => {
+    log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
   });
-
-  log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-  log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
-  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
 }
