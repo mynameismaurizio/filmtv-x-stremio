@@ -195,8 +195,8 @@ function parseCustomCatalogs(customConfig) {
 // Create builder with default manifest
 const builder = new addonBuilder(buildManifest());
 
-// Catalog handler
-builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
+// Define catalog handler function
+const catalogHandler = async ({ type, id, extra, config }) => {
   if (type !== 'movie') {
     return { metas: [] };
   }
@@ -304,7 +304,10 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     logError('Stack trace:', error.stack);
     return { metas: [] };
   }
-});
+};
+
+// Register the handler with the builder
+builder.defineCatalogHandler(catalogHandler);
 
 // Meta handler removed - Stremio will use catalog descriptions
 // This ensures the FilmTV ratings and descriptions persist when viewing movie details
@@ -315,46 +318,125 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const express = require('express');
-  const { getRouter } = require('stremio-addon-sdk');
-  const app = express();
-
-  // Parse JSON bodies
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-
-  // Health check endpoint for Railway
-  app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'filmtv-stremio-addon' });
+  const http = require('http');
+  const url = require('url');
+  const querystring = require('querystring');
+  
+  const addonInterface = builder.getInterface();
+  
+  const server = http.createServer(async (req, res) => {
+    const parsedUrl = url.parse(req.url, true);
+    const pathname = parsedUrl.pathname;
+    
+    log(`Request: ${req.method} ${pathname}`);
+    
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle OPTIONS requests
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    
+    // Health check
+    if (pathname === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', service: 'filmtv-stremio-addon' }));
+      return;
+    }
+    
+    // Handle manifest
+    if (pathname === '/manifest.json') {
+      try {
+        const manifest = addonInterface.manifest;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(manifest));
+      } catch (error) {
+        logError('Manifest error:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+      return;
+    }
+    
+    // Handle catalog requests
+    if (pathname.startsWith('/catalog/')) {
+      try {
+        const parts = pathname.split('/').filter(p => p);
+        const type = parts[1]; // 'movie'
+        const id = parts[2]?.replace('.json', '') || '';
+        
+        // Parse query params for extra and config
+        const extra = {};
+        const config = {};
+        
+        // Parse query string
+        if (parsedUrl.query) {
+          Object.keys(parsedUrl.query).forEach(key => {
+            if (key === 'tmdb_api_key') {
+              config.tmdb_api_key = parsedUrl.query[key];
+            } else {
+              extra[key] = parsedUrl.query[key];
+            }
+          });
+        }
+        
+        // Get body if POST
+        let body = '';
+        if (req.method === 'POST') {
+          req.on('data', chunk => { body += chunk.toString(); });
+          await new Promise(resolve => req.on('end', resolve));
+          
+          if (body) {
+            try {
+              const bodyData = JSON.parse(body);
+              if (bodyData.config) Object.assign(config, bodyData.config);
+              if (bodyData.extra) Object.assign(extra, bodyData.extra);
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+        }
+        
+        // Call the catalog handler directly
+        let result = { metas: [] };
+        
+        try {
+          result = await catalogHandler({ type, id, extra, config });
+        } catch (handlerError) {
+          logError('Handler error:', handlerError);
+          result = { metas: [] };
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result || { metas: [] }));
+      } catch (error) {
+        logError('Catalog error:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+      return;
+    }
+    
+    // 404 for everything else
+    log(`404: ${req.method} ${pathname}`);
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
   });
-
-  // Log all requests for debugging
-  app.use((req, res, next) => {
-    log(`Request: ${req.method} ${req.path}`);
-    next();
-  });
-
-  // Use the addon router - this handles all Stremio addon routes
-  const addonRouter = getRouter(builder.getInterface());
-  app.use('/', addonRouter);
-
-  // Error handler
-  app.use((err, req, res, next) => {
-    logError('Express error:', err);
-    res.status(500).json({ error: err.message });
-  });
-
-  // 404 handler
-  app.use((req, res) => {
-    log(`404: ${req.method} ${req.path}`);
-    res.status(404).json({ error: 'Not found' });
-  });
-
-  // Start server on 0.0.0.0 to be accessible from outside
-  app.listen(PORT, '0.0.0.0', () => {
+  
+  server.listen(PORT, '0.0.0.0', () => {
     log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
     log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
     log(`Health check: http://0.0.0.0:${PORT}/health`);
     log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  });
+  
+  // Handle server errors
+  server.on('error', (error) => {
+    logError('Server error:', error);
   });
 }
