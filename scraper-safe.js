@@ -591,11 +591,10 @@ async function getFilteredList(filters) {
     } finally {
       inFlightPromises.delete(cacheKey);
     }
-    })();
+  })();
 
-    inFlightPromises.set(cacheKey, promise);
-    return promise;
-  });
+  inFlightPromises.set(cacheKey, promise);
+  return promise;
 }
 
 async function getBestOfYear(year) {
@@ -653,11 +652,10 @@ async function getBestOfYear(year) {
     } finally {
       inFlightPromises.delete(cacheKey);
     }
-    })();
+  })();
 
-    inFlightPromises.set(cacheKey, promise);
-    return promise;
-  });
+  inFlightPromises.set(cacheKey, promise);
+  return promise;
 }
 
 async function getAllLists() {

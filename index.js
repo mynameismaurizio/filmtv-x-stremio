@@ -197,34 +197,18 @@ const builder = new addonBuilder(buildManifest());
 
 // Catalog handler
 builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:199',message:'Catalog handler called',data:{type,id,hasConfig:!!config,hasTmdbKey:!!(config?.tmdb_api_key),hasEnvKey:!!process.env.TMDB_API_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
   if (type !== 'movie') {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:202',message:'Type is not movie',data:{type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return { metas: [] };
   }
 
   // Set the TMDB API key from user configuration
   if (config && config.tmdb_api_key) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:207',message:'Using TMDB key from config',data:{catalogId:id,keyLength:config.tmdb_api_key?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     log(`✓ Using TMDB API key from config for catalog ${id}`);
     setTMDBApiKey(config.tmdb_api_key);
   } else if (process.env.TMDB_API_KEY) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:210',message:'Using TMDB key from env',data:{catalogId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     log(`✓ Using TMDB API key from environment for catalog ${id}`);
     setTMDBApiKey(process.env.TMDB_API_KEY);
   } else {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:213',message:'No TMDB key found',data:{catalogId:id,hasConfig:!!config,configKeys:config?Object.keys(config):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     // If no config and no env var, return error
     logError(`✗ No TMDB API key found for catalog ${id}`);
     return { metas: [] };
@@ -233,9 +217,6 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   try {
     // Handle custom catalogs
     if (id.startsWith('filmtv-custom-')) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:235',message:'Handling custom catalog',data:{catalogId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       const filtersEncoded = id.replace('filmtv-custom-', '');
       // Decode base64 filters (reverse the encoding from parseCustomCatalogs)
       const filtersBase64 = filtersEncoded.replace(/-/g, '+').replace(/_/g, '/');
@@ -243,9 +224,6 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       const padding = '='.repeat((4 - filtersBase64.length % 4) % 4);
       const filters = Buffer.from(filtersBase64 + padding, 'base64').toString('utf-8');
       const movies = await getFilteredList(filters);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:243',message:'Custom catalog movies fetched',data:{catalogId:id,moviesCount:movies.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       return { metas: movies };
     }
 
@@ -263,16 +241,9 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     }
 
     if (!yearFilter) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:259',message:'Unknown catalog ID',data:{catalogId:id,predefinedFound:!!predefinedCatalog},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
       logError(`✗ Unknown catalog ID: ${id}`);
       return { metas: [] };
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:263',message:'Year filter found',data:{catalogId:id,yearFilter,hasExtra:!!extra,hasGenre:!!(extra?.genre)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
 
     // Combined genre and country mapping
     const filterMap = {
@@ -324,23 +295,11 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     } else {
       // No genre/country filter - return all movies for the year/decade
       log(`✓ Fetching catalog for: ${yearFilter}`);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:312',message:'Calling getFilteredList',data:{catalogId:id,yearFilter},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-      // #endregion
       const movies = await getFilteredList(yearFilter);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:314',message:'getFilteredList returned',data:{catalogId:id,yearFilter,moviesCount:movies.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-      // #endregion
       log(`✓ Returning ${movies.length} movies for catalog ${id}`);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:316',message:'Returning movies',data:{catalogId:id,moviesCount:movies.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       return { metas: movies };
     }
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:320',message:'Catalog handler error',data:{catalogId:id,error:error.message,stack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     logError(`✗ Error in catalog handler for ${id}:`, error.message);
     logError('Stack trace:', error.stack);
     return { metas: [] };
@@ -358,9 +317,13 @@ module.exports = builder.getInterface();
 if (require.main === module) {
   const { serveHTTP } = require('stremio-addon-sdk');
 
-  serveHTTP(builder.getInterface(), { port: PORT });
+  // Listen on 0.0.0.0 to be accessible from outside the container
+  serveHTTP(builder.getInterface(), { 
+    port: PORT,
+    host: '0.0.0.0'  // Required for Railway and other cloud services
+  });
 
-  log(`FilmTV.it addon running on port ${PORT}`);
-  log(`Manifest available at: http://localhost:${PORT}/manifest.json`);
+  log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+  log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
   log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
 }
