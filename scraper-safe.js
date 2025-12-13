@@ -335,6 +335,14 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
         year: year,
         include_adult: false
       });
+      
+      // If still no results, try without year filter (more flexible)
+      if (!searchResults.results || searchResults.results.length === 0) {
+        searchResults = await fetchFromTMDB('/search/movie', {
+          query: originalTitle,
+          include_adult: false
+        });
+      }
     }
 
     if (!searchResults.results || searchResults.results.length === 0) {
