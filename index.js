@@ -1,5 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk');
-const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey, getMovieByImdbId } = require('./scraper-safe');
+const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey, getMovieByImdbId, getMovieByImdbIdFromTMDB } = require('./scraper-safe');
 
 // Logging helper with timestamps
 function getTimestamp() {
@@ -68,7 +68,7 @@ function buildManifest() {
 
   return {
     id: 'community.filmtv.it',
-    version: '1.3.0',
+    version: '1.3.1',
     name: 'FilmTV.it - I Migliori Film',
     description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno e filtri personalizzati',
     logo: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png',
@@ -76,8 +76,8 @@ function buildManifest() {
     resources: ['catalog', 'meta'],
     types: ['movie'],
     catalogs: catalogs,
-    // Accept both our prefixed IDs and plain IMDB IDs for meta lookups
-    idPrefixes: ['filmtv_', 'tt'],
+    // Catalog returns IMDB IDs (tt...); expose that prefix so meta handler is invoked
+    idPrefixes: ['tt'],
     // User configuration
     config: [
       {
@@ -341,7 +341,14 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
       return { meta: movie };
     }
 
-    log(`✗ Movie ${imdbId} not found in cached catalogs`);
+    // Fallback: fetch directly from TMDB by IMDB ID (Italian)
+    const tmdbMovie = await getMovieByImdbIdFromTMDB(imdbId);
+    if (tmdbMovie) {
+      log(`✓ Returning TMDB fallback metadata for ${imdbId} (${tmdbMovie.name || 'unknown'})`);
+      return { meta: tmdbMovie };
+    }
+
+    log(`✗ Movie ${imdbId} not found (cache or TMDB fallback)`);
     return { meta: null };
   } catch (error) {
     logError(`✗ Error in meta handler for ${id}:`, error.message);

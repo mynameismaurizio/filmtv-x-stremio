@@ -1118,11 +1118,43 @@ function getMovieByImdbId(imdbId) {
   return null;
 }
 
+// Fetch movie by IMDB ID directly from TMDB (fallback when not in cache)
+async function getMovieByImdbIdFromTMDB(imdbId) {
+  if (!imdbId || !imdbId.startsWith('tt') || !TMDB_API_KEY) {
+    return null;
+  }
+
+  try {
+    // Find TMDB ID by IMDB ID
+    const findResult = await fetchFromTMDB(`/find/${imdbId}`, {
+      external_source: 'imdb_id',
+      language: 'it-IT'
+    });
+
+    const movieResult = (findResult && findResult.movie_results && findResult.movie_results[0]) || null;
+    if (!movieResult) {
+      return null;
+    }
+
+    // Get full movie details (with external_ids) to ensure IMDB ID is present
+    const fullMovie = await getMovieWithIMDB(movieResult.id);
+    if (!fullMovie) {
+      return null;
+    }
+
+    return convertTMDBToStremio(fullMovie);
+  } catch (error) {
+    logError(`Error fetching movie by IMDB ID ${imdbId} from TMDB:`, error.message);
+    return null;
+  }
+}
+
 module.exports = {
   getBestOfYear,
   getFilteredList,
   getAllLists,
   setTMDBApiKey,
-  getMovieByImdbId
+  getMovieByImdbId,
+  getMovieByImdbIdFromTMDB
 };
 
