@@ -190,13 +190,7 @@ function convertTMDBToStremio(tmdbMovie) {
   // TMDB uses numeric IDs, but we need IMDB IDs for Stremio
   const imdbId = tmdbMovie.imdb_id;
   if (!imdbId || !imdbId.startsWith('tt')) {
-    log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title || 'Unknown'}`);
-    return null;
-  }
-  
-  // Ensure name is not empty (Stremio requires this)
-  if (!tmdbMovie.title || tmdbMovie.title.trim() === '') {
-    log(`Skipping movie without title`);
+    log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title}`);
     return null;
   }
 
@@ -222,55 +216,27 @@ function convertTMDBToStremio(tmdbMovie) {
 
   description += tmdbMovie.overview || '';
 
-  // Build Stremio movie object - only include non-null fields
-  // Stremio requires: id, type, name (all strings, no nulls)
   const stremioMovie = {
-    id: imdbId.trim(), // Ensure no whitespace
+    id: imdbId,
     type: 'movie',
-    name: tmdbMovie.title.trim(), // Ensure no whitespace and not empty
-    posterShape: 'poster'
+    name: tmdbMovie.title,
+    poster: tmdbMovie.poster_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}` : null,
+    posterShape: 'poster',
+    background: tmdbMovie.backdrop_path ? `${TMDB_IMAGE_BASE}${tmdbMovie.backdrop_path}` : null,
+    logo: `https://images.metahub.space/logo/medium/${imdbId}/img`,
+    description: description,
+    releaseInfo: tmdbMovie.release_date ? tmdbMovie.release_date.split('-')[0] : null,
+    imdbRating: tmdbMovie.vote_average ? tmdbMovie.vote_average.toFixed(1) : null,
+    genres: tmdbMovie.genres ? tmdbMovie.genres.map(g => g.name) : [],
+    runtime: tmdbMovie.runtime ? `${tmdbMovie.runtime} min` : null,
+    country: tmdbMovie.production_countries && tmdbMovie.production_countries.length > 0
+      ? tmdbMovie.production_countries[0].iso_3166_1
+      : null
   };
 
-  // Only add fields if they have valid values (Stremio doesn't like null)
-  if (tmdbMovie.poster_path) {
-    stremioMovie.poster = `${TMDB_IMAGE_BASE}${tmdbMovie.poster_path}`;
+  if (tmdbMovie.filmtvRating) {
+    stremioMovie.filmtvRating = tmdbMovie.filmtvRating;
   }
-  
-  if (tmdbMovie.backdrop_path) {
-    stremioMovie.background = `${TMDB_IMAGE_BASE}${tmdbMovie.backdrop_path}`;
-  }
-  
-  if (description) {
-    stremioMovie.description = description;
-  }
-  
-  if (tmdbMovie.release_date) {
-    stremioMovie.releaseInfo = tmdbMovie.release_date.split('-')[0];
-  }
-  
-  if (tmdbMovie.vote_average) {
-    stremioMovie.imdbRating = tmdbMovie.vote_average.toFixed(1);
-  }
-  
-  if (tmdbMovie.genres && tmdbMovie.genres.length > 0) {
-    stremioMovie.genres = tmdbMovie.genres.map(g => g.name);
-  }
-  
-  if (tmdbMovie.runtime) {
-    stremioMovie.runtime = `${tmdbMovie.runtime} min`;
-  }
-  
-  if (tmdbMovie.production_countries && tmdbMovie.production_countries.length > 0) {
-    stremioMovie.country = tmdbMovie.production_countries[0].iso_3166_1;
-  }
-
-  // Logo is optional, only add if we have IMDB ID
-  if (imdbId) {
-    stremioMovie.logo = `https://images.metahub.space/logo/medium/${imdbId}/img`;
-  }
-
-  // Don't add filmtvRating as it's not a standard Stremio field
-  // Stremio might reject unknown fields
 
   return stremioMovie;
 }
@@ -448,10 +414,6 @@ async function scrapeFilmTVList(year) {
 
 // Function to get filtered list from FilmTV
 async function getFilteredList(filters) {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:416',message:'getFilteredList entry',data:{filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  
   const cacheKey = `catalog_${filters}`;
   const now = Date.now();
 
@@ -460,9 +422,6 @@ async function getFilteredList(filters) {
     const { data, timestamp } = catalogCache.get(cacheKey);
     if (data && data.length > 0 && now - timestamp < CACHE_DURATION) {
       log(`✓ Cache hit for ${filters}`);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:424',message:'Cache hit',data:{filters,count:data.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return data;
     }
   }
@@ -470,9 +429,6 @@ async function getFilteredList(filters) {
   // Check if request is in flight
   if (inFlightPromises.has(cacheKey)) {
     log(`⏳ Waiting for in-flight request for ${filters}`);
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:432',message:'Waiting for in-flight',data:{filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     return inFlightPromises.get(cacheKey);
   }
 
@@ -606,66 +562,31 @@ async function getFilteredList(filters) {
 
       if (movies.length === 0) {
         log(`No movies found for filters: ${filters}`);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:607',message:'No movies found',data:{filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         return [];
       }
 
-      // #region agent log
-      console.log('[DEBUG] Found', movies.length, 'movies, fetching TMDB details...');
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:612',message:'Starting TMDB fetch',data:{filters,moviesCount:movies.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-
       // Get TMDB details with rate limiting
       const moviesWithDetails = await Promise.all(
-        movies.map(async (movie, index) => {
+        movies.map(async (movie) => {
           try {
-            // #region agent log
-            if (index === 0) {
-              console.log('[DEBUG] Fetching TMDB for first movie:', movie.title);
-            }
-            // #endregion
             const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
-            // #region agent log
-            if (index === 0) {
-              console.log('[DEBUG] Got TMDB result for first movie:', tmdbMovie ? 'success' : 'null');
-            }
-            // #endregion
             return tmdbMovie;
           } catch (error) {
             logError(`Error processing ${movie.title}:`, error.message);
-            // #region agent log
-            if (index === 0) {
-              console.error('[DEBUG] Error fetching TMDB for first movie:', error.message);
-            }
-            // #endregion
             return null;
           }
         })
       );
-
-      // #region agent log
-      console.log('[DEBUG] TMDB fetch complete, filtering results...');
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:625',message:'TMDB fetch complete',data:{filters,moviesWithDetailsCount:moviesWithDetails.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
 
       const results = moviesWithDetails.filter(m => m !== null);
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
       log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:595',message:'getFilteredList success',data:{filters,resultsCount:results.length,firstResult:results[0]?Object.keys(results[0]):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       return results;
     } catch (error) {
       logError('Error fetching filtered list:', error.message);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scraper-safe.js:600',message:'getFilteredList error',data:{filters,errorMessage:error.message,errorStack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return [];
     } finally {
       inFlightPromises.delete(cacheKey);
