@@ -356,41 +356,6 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
   }
 }
 
-// Extract original title from FilmTV.it movie page
-async function getOriginalTitleFromFilmTV(movieTitle, year) {
-  try {
-    // Try to find the movie page URL - we'll search for it
-    const searchUrl = `${FILMTV_BASE_URL}/ricerca/?q=${encodeURIComponent(movieTitle)}`;
-    const searchHtml = await fetchWithCache(searchUrl);
-    const $ = cheerio.load(searchHtml);
-    
-    // Look for the first movie result that matches the title and year
-    const movieLink = $('article a[href*="/film/"]').first().attr('href');
-    if (!movieLink) return null;
-    
-    const movieUrl = movieLink.startsWith('http') ? movieLink : `${FILMTV_BASE_URL}${movieLink}`;
-    const movieHtml = await fetchWithCache(movieUrl);
-    const $movie = cheerio.load(movieHtml);
-    
-    // Look for "Titolo originale" in the page
-    const originalTitleText = $movie('*').filter((_, el) => {
-      const text = $movie(el).text();
-      return text.includes('Titolo originale');
-    }).first().text();
-    
-    if (originalTitleText) {
-      const match = originalTitleText.match(/Titolo originale[:\s]+(.+)/i);
-      if (match && match[1]) {
-        return match[1].trim();
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    // Silently fail - we'll just use the Italian title
-    return null;
-  }
-}
 
 async function scrapeFilmTVList(year) {
   const scrapeStart = Date.now();
@@ -436,7 +401,8 @@ async function scrapeFilmTVList(year) {
         }
 
         let filmtvRating = null;
-        const article = $(elem).closest('article');
+        let originalTitle = null;
+        const article = $(elem).closest('article, .item-scheda-wrap');
         const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
         if (ratingSpan.length > 0) {
           const ratingText = ratingSpan.text().trim();
@@ -445,12 +411,24 @@ async function scrapeFilmTVList(year) {
             filmtvRating = rating;
           }
         }
+        
+        // Extract original title from the page
+        const originalTitleElem = article.find('p.titolo-originale');
+        if (originalTitleElem.length > 0) {
+          const originalTitleText = originalTitleElem.text().trim();
+          // Extract text after "Titolo originale"
+          const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
+          if (match && match[1]) {
+            originalTitle = match[1].trim();
+          }
+        }
 
         seen.add(title);
         movies.push({
           title: title,
           year: year,
-          filmtvRating: filmtvRating
+          filmtvRating: filmtvRating,
+          originalTitle: originalTitle
         });
       }
     });
@@ -485,23 +463,36 @@ async function scrapeFilmTVList(year) {
                   return;
                 }
 
-                let filmtvRating = null;
-                const article = $(elem).closest('article');
-                const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-                if (ratingSpan.length > 0) {
-                  const ratingText = ratingSpan.text().trim();
-                  const rating = parseFloat(ratingText);
-                  if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-                    filmtvRating = rating;
+                  let filmtvRating = null;
+                  let originalTitle = null;
+                  const article = $(elem).closest('article, .item-scheda-wrap');
+                  const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+                  if (ratingSpan.length > 0) {
+                    const ratingText = ratingSpan.text().trim();
+                    const rating = parseFloat(ratingText);
+                    if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                      filmtvRating = rating;
+                    }
                   }
-                }
+                  
+                  // Extract original title from the page
+                  const originalTitleElem = article.find('p.titolo-originale');
+                  if (originalTitleElem.length > 0) {
+                    const originalTitleText = originalTitleElem.text().trim();
+                    // Extract text after "Titolo originale"
+                    const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
+                    if (match && match[1]) {
+                      originalTitle = match[1].trim();
+                    }
+                  }
 
-                seen.add(title);
-                movies.push({
-                  title: title,
-                  year: year,
-                  filmtvRating: filmtvRating
-                });
+                  seen.add(title);
+                  movies.push({
+                    title: title,
+                    year: year,
+                    filmtvRating: filmtvRating,
+                    originalTitle: originalTitle
+                  });
               }
             });
           }
@@ -599,13 +590,25 @@ async function getFilteredList(filters) {
           }
 
           let filmtvRating = null;
-          const article = $(elem).closest('article');
+          let originalTitle = null;
+          const article = $(elem).closest('article, .item-scheda-wrap');
           const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
           if (ratingSpan.length > 0) {
             const ratingText = ratingSpan.text().trim();
             const rating = parseFloat(ratingText);
             if (!isNaN(rating) && rating >= 0 && rating <= 10) {
               filmtvRating = rating;
+            }
+          }
+          
+          // Extract original title from the page
+          const originalTitleElem = article.find('p.titolo-originale');
+          if (originalTitleElem.length > 0) {
+            const originalTitleText = originalTitleElem.text().trim();
+            // Extract text after "Titolo originale"
+            const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
+            if (match && match[1]) {
+              originalTitle = match[1].trim();
             }
           }
 
@@ -616,7 +619,8 @@ async function getFilteredList(filters) {
           movies.push({
             title: title,
             year: year,
-            filmtvRating: filmtvRating
+            filmtvRating: filmtvRating,
+            originalTitle: originalTitle
           });
         }
       });
@@ -652,13 +656,25 @@ async function getFilteredList(filters) {
                   }
 
                   let filmtvRating = null;
-                  const article = $(elem).closest('article');
+                  let originalTitle = null;
+                  const article = $(elem).closest('article, .item-scheda-wrap');
                   const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
                   if (ratingSpan.length > 0) {
                     const ratingText = ratingSpan.text().trim();
                     const rating = parseFloat(ratingText);
                     if (!isNaN(rating) && rating >= 0 && rating <= 10) {
                       filmtvRating = rating;
+                    }
+                  }
+                  
+                  // Extract original title from the page
+                  const originalTitleElem = article.find('p.titolo-originale');
+                  if (originalTitleElem.length > 0) {
+                    const originalTitleText = originalTitleElem.text().trim();
+                    // Extract text after "Titolo originale"
+                    const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
+                    if (match && match[1]) {
+                      originalTitle = match[1].trim();
                     }
                   }
 
@@ -669,7 +685,8 @@ async function getFilteredList(filters) {
                   movies.push({
                     title: title,
                     year: year,
-                    filmtvRating: filmtvRating
+                    filmtvRating: filmtvRating,
+                    originalTitle: originalTitle
                   });
                 }
               });
@@ -696,19 +713,8 @@ async function getFilteredList(filters) {
       const moviesWithDetails = await Promise.all(
         movies.map(async (movie) => {
           try {
-            // First try with Italian title
-            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
-            
-            // If not found, try to get original title and retry
-            if (!tmdbMovie && !movie.originalTitle) {
-              const originalTitle = await getOriginalTitleFromFilmTV(movie.title, movie.year);
-              if (originalTitle) {
-                tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, originalTitle);
-              }
-            } else if (!tmdbMovie && movie.originalTitle) {
-              // If we already have original title, use it
-              tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle);
-            }
+            // First try with Italian title, then with original title if available
+            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle || null);
             
             if (!tmdbMovie) {
               notFoundCount++;
@@ -820,19 +826,8 @@ async function getBestOfYear(year) {
       const moviesWithDetails = await Promise.all(
         filmtvMovies.map(async (movie) => {
           try {
-            // First try with Italian title
-            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
-            
-            // If not found, try to get original title and retry
-            if (!tmdbMovie && !movie.originalTitle) {
-              const originalTitle = await getOriginalTitleFromFilmTV(movie.title, movie.year);
-              if (originalTitle) {
-                tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, originalTitle);
-              }
-            } else if (!tmdbMovie && movie.originalTitle) {
-              // If we already have original title, use it
-              tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle);
-            }
+            // First try with Italian title, then with original title if available
+            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle || null);
             
             if (!tmdbMovie) {
               notFoundCount++;
