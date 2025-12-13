@@ -319,12 +319,15 @@ async function getMovieWithIMDB(tmdbId) {
 }
 
 // Helper function to find best match from TMDB results
-function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = null) {
+function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = null, searchDecadeStart = null) {
   if (!searchResults.results || searchResults.results.length === 0) {
     return null;
   }
 
   const searchYearNum = searchYear ? parseInt(searchYear) : null;
+  const decadeStartNum = searchDecadeStart ? parseInt(searchDecadeStart) : null;
+  const decadeEndNum = decadeStartNum !== null ? decadeStartNum + 9 : null;
+  const decadeMid = decadeStartNum !== null ? decadeStartNum + 5 : null;
   
   // First pass: look for exact matches (highest priority)
   for (const result of searchResults.results) {
@@ -346,13 +349,17 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match, return immediately
       }
-      // Only accept if year is very close (within 1 year) or if we have no year info
+      // If decade is known, accept only if within decade
+      if (!searchYearNum && decadeStartNum !== null && resultYear && resultYear >= decadeStartNum && resultYear <= decadeEndNum) {
+        return result; // Exact title match within decade
+      }
+      // Only accept if year is very close (within 1 year)
       if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
         return result; // Exact title match, year very close
       }
-      // If no year info at all, accept it (but this should be rare)
-      if (!searchYearNum || !resultYear) {
-        return result; // Exact title match, no year info
+      // If no year info at all and no decade, accept (rare)
+      if (!searchYearNum && decadeStartNum === null && (!resultYear || Number.isNaN(resultYear))) {
+        return result;
       }
     }
     
@@ -361,13 +368,17 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match
       }
-      // Only accept if year is very close (within 1 year) or if we have no year info
+      // If decade is known, accept only if within decade
+      if (!searchYearNum && decadeStartNum !== null && resultYear && resultYear >= decadeStartNum && resultYear <= decadeEndNum) {
+        return result; // Exact title match within decade
+      }
+      // Only accept if year is very close (within 1 year)
       if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
         return result; // Exact title match, year very close
       }
-      // If no year info at all, accept it (but this should be rare)
-      if (!searchYearNum || !resultYear) {
-        return result; // Exact title match, no year info
+      // If no year info at all and no decade, accept (rare)
+      if (!searchYearNum && decadeStartNum === null && (!resultYear || Number.isNaN(resultYear))) {
+        return result;
       }
     }
   }
@@ -400,11 +411,14 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       // Partial match - but only if year matches (to avoid wrong matches)
       const searchLower = searchTitle.toLowerCase();
       const resultLower = resultTitle.toLowerCase();
-      if ((resultLower.includes(searchLower) || searchLower.includes(resultLower)) && 
-          searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 2) {
-        score += 30; // Reduced score for partial matches, only if year is close
-      } else {
-        continue; // Skip partial matches without year match
+      if (resultLower.includes(searchLower) || searchLower.includes(resultLower)) {
+        if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 2) {
+          score += 30; // Partial match with year close
+        } else if (!searchYearNum && decadeStartNum !== null && resultYear && resultYear >= decadeStartNum && resultYear <= decadeEndNum) {
+          score += 20; // Partial match within decade
+        } else {
+          continue; // Skip partial matches without year/decade alignment
+        }
       }
     }
 
@@ -413,6 +427,14 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       score += 30;
     } else if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
       score += 10;
+    } else if (!searchYearNum && decadeStartNum !== null && resultYear && resultYear >= decadeStartNum && resultYear <= decadeEndNum) {
+      // Prefer movies inside the decade if year is not exact
+      score += 15;
+      // Small bonus for being near the middle of the decade
+      if (decadeMid !== null && resultYear) {
+        const dist = Math.abs(resultYear - decadeMid);
+        score += Math.max(0, 5 - dist); // closer to mid gets up to +5
+      }
     }
 
     // Prefer results with higher popularity if scores are similar
@@ -429,7 +451,7 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
   return bestMatch && bestScore > 50 ? bestMatch : null;
 }
 
-async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null) {
+async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null, decadeStart = null) {
   try {
     // First try with Italian title + year
     let searchResults = await fetchFromTMDB('/search/movie', {
@@ -440,7 +462,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
 
     let bestMatch = null;
     if (searchResults.results && searchResults.results.length > 0) {
-      bestMatch = findBestMatch(searchResults, title, year, originalTitle);
+      bestMatch = findBestMatch(searchResults, title, year, originalTitle, decadeStart);
     }
 
     // If no good match and we have original title, try with that + year
@@ -453,7 +475,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
       });
       
       if (searchResults.results && searchResults.results.length > 0) {
-        bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle);
+        bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle, decadeStart);
       }
       
       // If still no good match, try without year filter (last resort)
@@ -487,21 +509,25 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
             }
             
             // Only accept exact title match when searching without year
-            // AND the year must be very close (within 2 years)
+            // AND the year must be very close (within 2 years) or inside the decade if provided
             if (resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
               if (year && resultYear && Math.abs(resultYear - parseInt(year)) <= 2) {
                 log(`✅ Found exact match "${resultTitle}" (${resultYear}) for "${originalTitle}" (expected ${year})`);
                 bestMatch = result;
                 break;
+              } else if (!year && decadeStart !== null && resultYear && resultYear >= decadeStart && resultYear <= decadeStart + 9) {
+                log(`✅ Found exact match "${resultTitle}" (${resultYear}) within decade ${decadeStart}s for "${originalTitle}"`);
+                bestMatch = result;
+                break;
               } else if (year && resultYear) {
                 log(`⚠️ Exact title match "${resultTitle}" but year mismatch: ${resultYear} vs ${year} (diff: ${Math.abs(resultYear - parseInt(year))})`);
               }
-              // If no year info, don't accept it - too risky
+              // If no year info and no decade, don't accept it - too risky
             }
           }
           
           if (!bestMatch) {
-            log(`❌ No acceptable match found for "${originalTitle}" (expected year: ${year})`);
+            log(`❌ No acceptable match found for "${originalTitle}" (expected year: ${year}${decadeStart ? `, decade ${decadeStart}s` : ''})`);
           }
         }
       }
@@ -794,11 +820,14 @@ async function getFilteredList(filters) {
 
           seen.add(title);
           const yearMatch = filters.match(/anno-(\d{4})/);
-          const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+          const decadeMatch = filters.match(/anni-(\d{4})/);
+          const year = yearMatch ? parseInt(yearMatch[1]) : null;
+          const decadeStart = decadeMatch ? parseInt(decadeMatch[1]) : null;
 
           movies.push({
             title: title,
             year: year,
+            decadeStart,
             filmtvRating: filmtvRating,
             originalTitle: originalTitle
           });
@@ -860,11 +889,14 @@ async function getFilteredList(filters) {
 
                   seen.add(title);
                   const yearMatch = filters.match(/anno-(\d{4})/);
-                  const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+                  const decadeMatch = filters.match(/anni-(\d{4})/);
+                  const year = yearMatch ? parseInt(yearMatch[1]) : null;
+                  const decadeStart = decadeMatch ? parseInt(decadeMatch[1]) : null;
 
                   movies.push({
                     title: title,
                     year: year,
+                    decadeStart,
                     filmtvRating: filmtvRating,
                     originalTitle: originalTitle
                   });
@@ -894,7 +926,13 @@ async function getFilteredList(filters) {
         movies.map(async (movie) => {
           try {
             // First try with Italian title, then with original title if available
-            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle || null);
+            let tmdbMovie = await searchMovieOnTMDB(
+              movie.title,
+              movie.year,
+              movie.filmtvRating,
+              movie.originalTitle || null,
+              movie.decadeStart || null
+            );
             
             if (!tmdbMovie) {
               notFoundCount++;
@@ -1007,7 +1045,13 @@ async function getBestOfYear(year) {
         filmtvMovies.map(async (movie) => {
           try {
             // First try with Italian title, then with original title if available
-            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle || null);
+            let tmdbMovie = await searchMovieOnTMDB(
+              movie.title,
+              movie.year,
+              movie.filmtvRating,
+              movie.originalTitle || null,
+              movie.decadeStart || null
+            );
             
             if (!tmdbMovie) {
               notFoundCount++;
