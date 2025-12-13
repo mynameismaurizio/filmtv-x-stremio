@@ -318,13 +318,24 @@ async function getMovieWithIMDB(tmdbId) {
   }
 }
 
-async function searchMovieOnTMDB(title, year, filmtvRating = null) {
+async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null) {
   try {
-    const searchResults = await fetchFromTMDB('/search/movie', {
+    // First try with Italian title
+    let searchResults = await fetchFromTMDB('/search/movie', {
       query: title,
       year: year,
       include_adult: false
     });
+
+    // If no results and we have original title, try with that
+    if ((!searchResults.results || searchResults.results.length === 0) && originalTitle && originalTitle !== title) {
+      log(`🔄 Retrying search with original title: ${originalTitle} (was: ${title})`);
+      searchResults = await fetchFromTMDB('/search/movie', {
+        query: originalTitle,
+        year: year,
+        include_adult: false
+      });
+    }
 
     if (!searchResults.results || searchResults.results.length === 0) {
       return null;
@@ -341,6 +352,42 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null) {
     return convertTMDBToStremio(fullMovie);
   } catch (error) {
     logError(`Error searching TMDB for ${title}:`, error.message);
+    return null;
+  }
+}
+
+// Extract original title from FilmTV.it movie page
+async function getOriginalTitleFromFilmTV(movieTitle, year) {
+  try {
+    // Try to find the movie page URL - we'll search for it
+    const searchUrl = `${FILMTV_BASE_URL}/ricerca/?q=${encodeURIComponent(movieTitle)}`;
+    const searchHtml = await fetchWithCache(searchUrl);
+    const $ = cheerio.load(searchHtml);
+    
+    // Look for the first movie result that matches the title and year
+    const movieLink = $('article a[href*="/film/"]').first().attr('href');
+    if (!movieLink) return null;
+    
+    const movieUrl = movieLink.startsWith('http') ? movieLink : `${FILMTV_BASE_URL}${movieLink}`;
+    const movieHtml = await fetchWithCache(movieUrl);
+    const $movie = cheerio.load(movieHtml);
+    
+    // Look for "Titolo originale" in the page
+    const originalTitleText = $movie('*').filter((_, el) => {
+      const text = $movie(el).text();
+      return text.includes('Titolo originale');
+    }).first().text();
+    
+    if (originalTitleText) {
+      const match = originalTitleText.match(/Titolo originale[:\s]+(.+)/i);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    // Silently fail - we'll just use the Italian title
     return null;
   }
 }
@@ -649,7 +696,20 @@ async function getFilteredList(filters) {
       const moviesWithDetails = await Promise.all(
         movies.map(async (movie) => {
           try {
-            const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            // First try with Italian title
+            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            
+            // If not found, try to get original title and retry
+            if (!tmdbMovie && !movie.originalTitle) {
+              const originalTitle = await getOriginalTitleFromFilmTV(movie.title, movie.year);
+              if (originalTitle) {
+                tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, originalTitle);
+              }
+            } else if (!tmdbMovie && movie.originalTitle) {
+              // If we already have original title, use it
+              tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle);
+            }
+            
             if (!tmdbMovie) {
               notFoundCount++;
               notFoundTitles.push(movie.title);
@@ -760,7 +820,20 @@ async function getBestOfYear(year) {
       const moviesWithDetails = await Promise.all(
         filmtvMovies.map(async (movie) => {
           try {
-            const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            // First try with Italian title
+            let tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            
+            // If not found, try to get original title and retry
+            if (!tmdbMovie && !movie.originalTitle) {
+              const originalTitle = await getOriginalTitleFromFilmTV(movie.title, movie.year);
+              if (originalTitle) {
+                tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, originalTitle);
+              }
+            } else if (!tmdbMovie && movie.originalTitle) {
+              // If we already have original title, use it
+              tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating, movie.originalTitle);
+            }
+            
             if (!tmdbMovie) {
               notFoundCount++;
               notFoundTitles.push(movie.title);
