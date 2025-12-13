@@ -447,9 +447,6 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     if (score > bestScore) {
       bestScore = score;
       bestMatch = result;
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H6',location:'scraper-safe.js:findBestMatch',message:'candidate bestMatch',data:{title:resultTitle,origTitle:resultOriginalTitle,year:resultYear,score,bestScore,searchTitle,searchYear:searchYearNum,decadeStart:decadeStartNum},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     }
   }
 
@@ -723,10 +720,6 @@ async function scrapeFilmTVList(year) {
     const scrapeDuration = Date.now() - scrapeStart;
     log(`Scraped ${movies.length} movies from FilmTV.it for ${year} in ${scrapeDuration} ms`);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H4',location:'scraper-safe.js:scrapeFilmTVList',message:'scrape duration',data:{year,count:movies.length,durationMs:scrapeDuration},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-
     return movies;
   } catch (error) {
     logError(`Error scraping FilmTV.it for ${year}:`, error.message);
@@ -739,10 +732,6 @@ async function getFilteredList(filters) {
   const cacheKey = `catalog_${filters}`;
   const now = Date.now();
   const start = Date.now();
-
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'scraper-safe.js:getFilteredList',message:'entry getFilteredList',data:{cacheKey},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   // Check catalog cache
   if (catalogCache.has(cacheKey)) {
@@ -981,23 +970,11 @@ async function getFilteredList(filters) {
 
       const totalDuration = Date.now() - start;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getFilteredList',message:'success getFilteredList',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getFilteredList',message:'perf getFilteredList',data:{cacheKey,totalDurationMs:totalDuration,tmdbDurationMs:tmdbDuration,moviesInput:movies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
       log(`⏱️ getFilteredList ${filters}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${movies.length}, out ${results.length}`);
 
       return results;
     } catch (error) {
       logError('Error fetching filtered list:', error.message);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'scraper-safe.js:getFilteredList',message:'error getFilteredList',data:{cacheKey,error:error.message},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       return [];
     } finally {
@@ -1026,10 +1003,6 @@ async function getBestOfYear(year) {
     log(`⏳ Waiting for in-flight request for ${year}`);
     return inFlightPromises.get(cacheKey);
   }
-
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'scraper-safe.js:getBestOfYear',message:'entry getBestOfYear',data:{cacheKey},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   // Wrap in rate limiter to prevent too many catalogs processing simultaneously
   const promise = rateLimitedCatalogRequest(async () => {
@@ -1100,23 +1073,11 @@ async function getBestOfYear(year) {
 
       const totalDuration = Date.now() - start;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getBestOfYear',message:'success getBestOfYear',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getBestOfYear',message:'perf getBestOfYear',data:{cacheKey,totalDurationMs:totalDuration,tmdbDurationMs:tmdbDuration,moviesInput:filmtvMovies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
       log(`⏱️ getBestOfYear ${year}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${filmtvMovies.length}, out ${results.length}`);
 
       return results;
     } catch (error) {
       logError('Error fetching best of year:', error.message);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'scraper-safe.js:getBestOfYear',message:'error getBestOfYear',data:{cacheKey,error:error.message},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       return [];
     } finally {
