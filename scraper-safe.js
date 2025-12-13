@@ -332,11 +332,21 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     let score = 0;
     const resultTitle = result.title || '';
     const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
+    const titleLower = resultTitle.toLowerCase();
 
-    // Exact title match gets highest score
-    if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
-      score += 100;
-    } else if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+    // Skip documentaries, making-of, trailers, etc. (they often don't have IMDB IDs)
+    if (titleLower.includes('making of') || 
+        titleLower.includes('behind the scenes') ||
+        titleLower.includes('documentary') ||
+        titleLower.includes('trailer') ||
+        titleLower.includes('the making of')) {
+      continue;
+    }
+
+    // Exact title match gets highest score - prefer original title if available
+    if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+      score += 200; // Highest priority for exact original title match
+    } else if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
       score += 100;
     } else {
       // Partial match - check if search title is contained in result title or vice versa
@@ -406,9 +416,19 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
       return null;
     }
 
+    // Log which movie was selected for debugging
+    if (searchResults.results.length > 1) {
+      log(`🎯 Selected "${bestMatch.title}" (${bestMatch.release_date?.substring(0,4) || 'N/A'}) from ${searchResults.results.length} results for "${title}"`);
+    }
+
     const tmdbId = bestMatch.id;
     const fullMovie = await getMovieWithIMDB(tmdbId);
     if (!fullMovie) return null;
+
+    // Log if movie doesn't have IMDB ID
+    if (!fullMovie.imdb_id || !fullMovie.imdb_id.startsWith('tt')) {
+      log(`⚠️ Movie "${fullMovie.title}" (TMDB ID: ${tmdbId}) found but has no IMDB ID`);
+    }
 
     if (filmtvRating) {
       fullMovie.filmtvRating = filmtvRating;
