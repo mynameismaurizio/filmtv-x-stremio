@@ -1,22 +1,19 @@
 FROM node:20-slim
 
-# Install git (needed to clone from GitHub)
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-
 # Set working directory
 WORKDIR /app
 
-# Clone the repository from GitHub
-RUN git clone https://github.com/mynameismaurizio/filmtv-x-stremio.git .
+# Copy package files first (for better caching)
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install --production
 
-# Expose port (Hugging Face uses 7860 by default)
-EXPOSE 7860
+# Copy application files
+COPY . .
 
-# Set environment variable for port
-ENV PORT=7860
+# Expose port (Railway sets PORT automatically via env var)
+EXPOSE ${PORT:-10000}
 
 # Start the addon
 CMD ["npm", "start"]
