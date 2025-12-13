@@ -1097,10 +1097,32 @@ async function getAllLists() {
   ];
 }
 
+// Helper function to find a movie by IMDB ID in cached catalogs
+function getMovieByImdbId(imdbId) {
+  if (!imdbId || !imdbId.startsWith('tt')) {
+    return null;
+  }
+
+  // Search through all cached catalogs
+  for (const [cacheKey, cacheData] of catalogCache.entries()) {
+    if (cacheData && cacheData.data && Array.isArray(cacheData.data)) {
+      const movie = cacheData.data.find(m => m && m.id === imdbId);
+      if (movie) {
+        log(`✓ Found movie ${imdbId} in cached catalog ${cacheKey}`);
+        return movie;
+      }
+    }
+  }
+
+  log(`✗ Movie ${imdbId} not found in any cached catalog`);
+  return null;
+}
+
 module.exports = {
   getBestOfYear,
   getFilteredList,
   getAllLists,
-  setTMDBApiKey
+  setTMDBApiKey,
+  getMovieByImdbId
 };
 
