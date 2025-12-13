@@ -17,3 +17,4 @@ EXPOSE ${PORT:-10000}
 
 # Start the addon
 CMD ["npm", "start"]
+

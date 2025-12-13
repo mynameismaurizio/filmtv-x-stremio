@@ -1,5 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk');
-const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey, getMovieByImdbId } = require('./scraper-safe');
+const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey } = require('./scraper-safe');
 
 // Logging helper with timestamps
 function getTimestamp() {
@@ -73,10 +73,10 @@ function buildManifest() {
     description: 'Sfoglia le liste curate di FilmTV.it con i migliori film per anno e filtri personalizzati',
     logo: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/DraftAi-2.png',
     background: 'https://raw.githubusercontent.com/mynameismaurizio/filmtv-x-stremio/refs/heads/main/locandinesthether.png',
-    resources: ['catalog', 'meta'],
+    resources: ['catalog'],
     types: ['movie'],
     catalogs: catalogs,
-    // idPrefixes removed - we want to handle all movie IDs in meta handler
+    idPrefixes: ['filmtv_'],
     // User configuration
     config: [
       {
@@ -306,56 +306,8 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
   }
 });
 
-// Meta handler - returns the same metadata from catalog (with Italian description)
-// This ensures the FilmTV ratings and Italian descriptions persist when viewing movie details
-builder.defineMetaHandler(async ({ type, id, config }) => {
-  log(`🔍 Meta handler called: type=${type}, id=${id}`);
-  
-  if (type !== 'movie') {
-    log(`✗ Meta handler: type is not 'movie', returning null`);
-    return { meta: null };
-  }
-
-  // Set the TMDB API key from user configuration
-  if (config && config.tmdb_api_key) {
-    log(`✓ Using TMDB API key from config for meta ${id}`);
-    setTMDBApiKey(config.tmdb_api_key);
-  } else if (process.env.TMDB_API_KEY) {
-    log(`✓ Using TMDB API key from environment for meta ${id}`);
-    setTMDBApiKey(process.env.TMDB_API_KEY);
-  }
-
-  try {
-    // Extract IMDB ID from Stremio ID format (tt1234567 or filmtv_tt1234567)
-    let imdbId = id;
-    if (id.startsWith('filmtv_')) {
-      imdbId = id.replace('filmtv_', '');
-      log(`✓ Extracted IMDB ID from filmtv_ prefix: ${imdbId}`);
-    } else if (id.startsWith('tt')) {
-      imdbId = id;
-      log(`✓ Using IMDB ID directly: ${imdbId}`);
-    } else {
-      log(`⚠️ Meta handler: ID format not recognized: ${id}`);
-      return { meta: null };
-    }
-
-    // Search for the movie in cached catalogs
-    log(`🔍 Searching for movie ${imdbId} in cached catalogs...`);
-    const movie = getMovieByImdbId(imdbId);
-    
-    if (movie) {
-      log(`✓ Returning metadata for ${imdbId} (${movie.name || 'unknown'})`);
-      return { meta: movie };
-    }
-
-    log(`✗ Movie ${imdbId} not found in cached catalogs`);
-    return { meta: null };
-  } catch (error) {
-    logError(`✗ Error in meta handler for ${id}:`, error.message);
-    logError('Stack trace:', error.stack);
-    return { meta: null };
-  }
-});
+// Meta handler removed - Stremio will use catalog descriptions
+// This ensures the FilmTV ratings and descriptions persist when viewing movie details
 
 const PORT = process.env.PORT || 7860;
 
