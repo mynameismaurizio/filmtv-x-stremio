@@ -29,10 +29,11 @@ let TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
-// Rate limiting configuration - AGGRESSIVE to prevent resource exhaustion
-const REQUEST_DELAY = 1000; // 1 second delay between requests (increased from 500ms)
-const MAX_CONCURRENT_REQUESTS = 1; // Only 1 request at a time (reduced from 3)
-const MAX_CONCURRENT_CATALOGS = 2; // Max 2 catalog requests processing simultaneously
+// Rate limiting configuration
+// Faster on Railway: more TMDB parallelism, shorter delay
+const REQUEST_DELAY = 150; // delay between requests (ms)
+const MAX_CONCURRENT_REQUESTS = 6; // TMDB/http requests in parallel
+const MAX_CONCURRENT_CATALOGS = 3; // catalogs processed simultaneously
 let activeRequests = 0;
 let activeCatalogRequests = 0;
 const requestQueue = [];
@@ -288,7 +289,7 @@ async function scrapeFilmTVList(year) {
   const scrapeStart = Date.now();
   const movies = [];
   const seen = new Set();
-  const PAGES_TO_SCRAPE = 2; // Limit to 2 pages (40 movies max)
+  const PAGES_TO_SCRAPE = 1; // Limit to 1 page (faster)
   const MOVIES_PER_PAGE = 20;
 
   try {
@@ -451,7 +452,7 @@ async function getFilteredList(filters) {
 
       const movies = [];
       const seen = new Set();
-      const PAGES_TO_SCRAPE = 2;
+      const PAGES_TO_SCRAPE = 1;
       const MOVIES_PER_PAGE = 20;
 
       const initialUrl = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
