@@ -289,7 +289,7 @@ async function scrapeFilmTVList(year) {
   const scrapeStart = Date.now();
   const movies = [];
   const seen = new Set();
-  const PAGES_TO_SCRAPE = 1; // Limit to 1 page (faster)
+  const PAGES_TO_SCRAPE = 2; // Up to 2 pages (40 movies max)
   const MOVIES_PER_PAGE = 20;
 
   try {
@@ -452,7 +452,7 @@ async function getFilteredList(filters) {
 
       const movies = [];
       const seen = new Set();
-      const PAGES_TO_SCRAPE = 1;
+      const PAGES_TO_SCRAPE = 2;
       const MOVIES_PER_PAGE = 20;
 
       const initialUrl = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
