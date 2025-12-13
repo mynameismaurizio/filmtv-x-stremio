@@ -318,6 +318,57 @@ async function getMovieWithIMDB(tmdbId) {
   }
 }
 
+// Helper function to find best match from TMDB results
+function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = null) {
+  if (!searchResults.results || searchResults.results.length === 0) {
+    return null;
+  }
+
+  const searchYearNum = searchYear ? parseInt(searchYear) : null;
+  let bestMatch = null;
+  let bestScore = -1;
+
+  for (const result of searchResults.results) {
+    let score = 0;
+    const resultTitle = result.title || '';
+    const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
+
+    // Exact title match gets highest score
+    if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
+      score += 100;
+    } else if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+      score += 100;
+    } else {
+      // Partial match - check if search title is contained in result title or vice versa
+      const searchLower = searchTitle.toLowerCase();
+      const resultLower = resultTitle.toLowerCase();
+      if (resultLower.includes(searchLower) || searchLower.includes(resultLower)) {
+        score += 50;
+      }
+    }
+
+    // Year match adds significant score
+    if (searchYearNum && resultYear === searchYearNum) {
+      score += 30;
+    } else if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
+      // Within 1 year is still good
+      score += 10;
+    }
+
+    // Prefer results with higher popularity if scores are similar
+    score += Math.min(result.popularity || 0, 10);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = result;
+    }
+  }
+
+  // If we have a good match (score > 50), use it
+  // Otherwise, fall back to first result if no good match found
+  return bestMatch || searchResults.results[0];
+}
+
 async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null) {
   try {
     // First try with Italian title
@@ -349,7 +400,13 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
       return null;
     }
 
-    const tmdbId = searchResults.results[0].id;
+    // Find the best matching result
+    const bestMatch = findBestMatch(searchResults, originalTitle || title, year, originalTitle);
+    if (!bestMatch) {
+      return null;
+    }
+
+    const tmdbId = bestMatch.id;
     const fullMovie = await getMovieWithIMDB(tmdbId);
     if (!fullMovie) return null;
 
