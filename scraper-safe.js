@@ -325,6 +325,44 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
   }
 
   const searchYearNum = searchYear ? parseInt(searchYear) : null;
+  
+  // First pass: look for exact matches (highest priority)
+  for (const result of searchResults.results) {
+    const resultTitle = result.title || '';
+    const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
+    const titleLower = resultTitle.toLowerCase();
+
+    // Skip documentaries, making-of, trailers, etc.
+    if (titleLower.includes('making of') || 
+        titleLower.includes('behind the scenes') ||
+        titleLower.includes('documentary') ||
+        titleLower.includes('trailer') ||
+        titleLower.includes('the making of')) {
+      continue;
+    }
+
+    // Exact title match with year match = perfect match
+    if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+      if (searchYearNum && resultYear === searchYearNum) {
+        return result; // Perfect match, return immediately
+      }
+      if (!searchYearNum || !resultYear || Math.abs(resultYear - searchYearNum) <= 2) {
+        return result; // Exact title match, year close enough
+      }
+    }
+    
+    // Exact match with search title
+    if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
+      if (searchYearNum && resultYear === searchYearNum) {
+        return result; // Perfect match
+      }
+      if (!searchYearNum || !resultYear || Math.abs(resultYear - searchYearNum) <= 2) {
+        return result; // Exact title match, year close enough
+      }
+    }
+  }
+
+  // Second pass: if no exact match, use scoring system (but be more strict)
   let bestMatch = null;
   let bestScore = -1;
 
@@ -334,7 +372,7 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
     const titleLower = resultTitle.toLowerCase();
 
-    // Skip documentaries, making-of, trailers, etc. (they often don't have IMDB IDs)
+    // Skip documentaries, making-of, trailers, etc.
     if (titleLower.includes('making of') || 
         titleLower.includes('behind the scenes') ||
         titleLower.includes('documentary') ||
@@ -343,17 +381,20 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       continue;
     }
 
-    // Exact title match gets highest score - prefer original title if available
+    // Exact title match gets highest score
     if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
-      score += 200; // Highest priority for exact original title match
+      score += 200;
     } else if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
       score += 100;
     } else {
-      // Partial match - check if search title is contained in result title or vice versa
+      // Partial match - but only if year matches (to avoid wrong matches)
       const searchLower = searchTitle.toLowerCase();
       const resultLower = resultTitle.toLowerCase();
-      if (resultLower.includes(searchLower) || searchLower.includes(resultLower)) {
-        score += 50;
+      if ((resultLower.includes(searchLower) || searchLower.includes(resultLower)) && 
+          searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 2) {
+        score += 30; // Reduced score for partial matches, only if year is close
+      } else {
+        continue; // Skip partial matches without year match
       }
     }
 
@@ -361,12 +402,11 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     if (searchYearNum && resultYear === searchYearNum) {
       score += 30;
     } else if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
-      // Within 1 year is still good
       score += 10;
     }
 
     // Prefer results with higher popularity if scores are similar
-    score += Math.min(result.popularity || 0, 10);
+    score += Math.min(result.popularity || 0, 5);
 
     if (score > bestScore) {
       bestScore = score;
@@ -374,22 +414,27 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     }
   }
 
-  // If we have a good match (score > 50), use it
-  // Otherwise, fall back to first result if no good match found
-  return bestMatch || searchResults.results[0];
+  // Only return if we have a good match (score > 50)
+  // Otherwise return null to try other search strategies
+  return bestMatch && bestScore > 50 ? bestMatch : null;
 }
 
 async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null) {
   try {
-    // First try with Italian title
+    // First try with Italian title + year
     let searchResults = await fetchFromTMDB('/search/movie', {
       query: title,
       year: year,
       include_adult: false
     });
 
-    // If no results and we have original title, try with that
-    if ((!searchResults.results || searchResults.results.length === 0) && originalTitle && originalTitle !== title) {
+    let bestMatch = null;
+    if (searchResults.results && searchResults.results.length > 0) {
+      bestMatch = findBestMatch(searchResults, title, year, originalTitle);
+    }
+
+    // If no good match and we have original title, try with that + year
+    if (!bestMatch && originalTitle && originalTitle !== title) {
       log(`🔄 Retrying search with original title: ${originalTitle} (was: ${title})`);
       searchResults = await fetchFromTMDB('/search/movie', {
         query: originalTitle,
@@ -397,21 +442,23 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
         include_adult: false
       });
       
-      // If still no results, try without year filter (more flexible)
-      if (!searchResults.results || searchResults.results.length === 0) {
+      if (searchResults.results && searchResults.results.length > 0) {
+        bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle);
+      }
+      
+      // If still no good match, try without year filter (last resort)
+      if (!bestMatch) {
         searchResults = await fetchFromTMDB('/search/movie', {
           query: originalTitle,
           include_adult: false
         });
+        
+        if (searchResults.results && searchResults.results.length > 0) {
+          bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle);
+        }
       }
     }
 
-    if (!searchResults.results || searchResults.results.length === 0) {
-      return null;
-    }
-
-    // Find the best matching result
-    const bestMatch = findBestMatch(searchResults, originalTitle || title, year, originalTitle);
     if (!bestMatch) {
       return null;
     }
