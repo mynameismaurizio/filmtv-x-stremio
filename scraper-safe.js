@@ -435,156 +435,156 @@ async function getFilteredList(filters) {
   // Wrap in rate limiter to prevent too many catalogs processing simultaneously
   return rateLimitedCatalogRequest(async () => {
     const promise = (async () => {
-    try {
-      log(`🔄 Fetching fresh catalog for filters: ${filters}`);
+      try {
+        log(`🔄 Fetching fresh catalog for filters: ${filters}`);
 
-      const movies = [];
-      const seen = new Set();
-      const PAGES_TO_SCRAPE = 2;
-      const MOVIES_PER_PAGE = 20;
+        const movies = [];
+        const seen = new Set();
+        const PAGES_TO_SCRAPE = 2;
+        const MOVIES_PER_PAGE = 20;
 
-      const initialUrl = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
-      const initialHtml = await fetchWithCache(initialUrl);
-      let $ = cheerio.load(initialHtml);
+        const initialUrl = `${FILMTV_BASE_URL}/film/migliori/${filters}/#`;
+        const initialHtml = await fetchWithCache(initialUrl);
+        let $ = cheerio.load(initialHtml);
 
-      const dataExec = $('[data-exec*="loader/film"]').attr('data-exec');
-      let loaderUrl = null;
+        const dataExec = $('[data-exec*="loader/film"]').attr('data-exec');
+        let loaderUrl = null;
 
-      if (dataExec) {
-        const match = dataExec.match(/newlist\('M','(\/\/[^']+)'\)/);
-        if (match) {
-          loaderUrl = 'https:' + match[1];
-          loaderUrl = loaderUrl.replace(/\/\d+\/\d+\/$/, '');
-        }
-      }
-
-      // Process first page
-      $('h3, h2, h4').each((_, elem) => {
-        const text = $(elem).text().trim();
-        const match = text.match(/^(\d+)\.\s*(.+?)$/);
-
-        if (match) {
-          let title = match[2].trim();
-          title = title.split('\n')[0].split('\t')[0].trim();
-
-          if (title.length < 3 ||
-              title.includes('La recensione') ||
-              title.includes('Uscito in Italia') ||
-              title.includes('Uscita in Italia') ||
-              title.includes('streaming') ||
-              title.includes('migliori') ||
-              seen.has(title)) {
-            return;
+        if (dataExec) {
+          const match = dataExec.match(/newlist\('M','(\/\/[^']+)'\)/);
+          if (match) {
+            loaderUrl = 'https:' + match[1];
+            loaderUrl = loaderUrl.replace(/\/\d+\/\d+\/$/, '');
           }
+        }
 
-          let filmtvRating = null;
-          const article = $(elem).closest('article');
-          const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-          if (ratingSpan.length > 0) {
-            const ratingText = ratingSpan.text().trim();
-            const rating = parseFloat(ratingText);
-            if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-              filmtvRating = rating;
+        // Process first page
+        $('h3, h2, h4').each((_, elem) => {
+          const text = $(elem).text().trim();
+          const match = text.match(/^(\d+)\.\s*(.+?)$/);
+
+          if (match) {
+            let title = match[2].trim();
+            title = title.split('\n')[0].split('\t')[0].trim();
+
+            if (title.length < 3 ||
+                title.includes('La recensione') ||
+                title.includes('Uscito in Italia') ||
+                title.includes('Uscita in Italia') ||
+                title.includes('streaming') ||
+                title.includes('migliori') ||
+                seen.has(title)) {
+              return;
             }
+
+            let filmtvRating = null;
+            const article = $(elem).closest('article');
+            const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+            if (ratingSpan.length > 0) {
+              const ratingText = ratingSpan.text().trim();
+              const rating = parseFloat(ratingText);
+              if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                filmtvRating = rating;
+              }
+            }
+
+            seen.add(title);
+            const yearMatch = filters.match(/anno-(\d{4})/);
+            const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+            movies.push({
+              title: title,
+              year: year,
+              filmtvRating: filmtvRating
+            });
           }
+        });
 
-          seen.add(title);
-          const yearMatch = filters.match(/anno-(\d{4})/);
-          const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+        // Fetch additional pages
+        if (loaderUrl && PAGES_TO_SCRAPE > 1) {
+          for (let page = 2; page <= PAGES_TO_SCRAPE; page++) {
+            const start = (page - 1) * MOVIES_PER_PAGE;
+            const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
 
-          movies.push({
-            title: title,
-            year: year,
-            filmtvRating: filmtvRating
-          });
-        }
-      });
+            try {
+              const data = await fetchWithCache(paginatedUrl);
 
-      // Fetch additional pages
-      if (loaderUrl && PAGES_TO_SCRAPE > 1) {
-        for (let page = 2; page <= PAGES_TO_SCRAPE; page++) {
-          const start = (page - 1) * MOVIES_PER_PAGE;
-          const paginatedUrl = `${loaderUrl}/${start}/${MOVIES_PER_PAGE}/`;
+              if (data && typeof data === 'object' && data.html) {
+                $ = cheerio.load(data.html);
 
-          try {
-            const data = await fetchWithCache(paginatedUrl);
+                $('h2, h3, h4').each((_, elem) => {
+                  const text = $(elem).text().trim();
+                  const match = text.match(/^(\d+)\.\s*(.+?)$/);
 
-            if (data && typeof data === 'object' && data.html) {
-              $ = cheerio.load(data.html);
+                  if (match) {
+                    let title = match[2].trim();
+                    title = title.split('\n')[0].split('\t')[0].trim();
 
-              $('h2, h3, h4').each((_, elem) => {
-                const text = $(elem).text().trim();
-                const match = text.match(/^(\d+)\.\s*(.+?)$/);
-
-                if (match) {
-                  let title = match[2].trim();
-                  title = title.split('\n')[0].split('\t')[0].trim();
-
-                  if (title.length < 3 ||
-                      title.includes('La recensione') ||
-                      title.includes('Uscito in Italia') ||
-                      title.includes('Uscita in Italia') ||
-                      title.includes('streaming') ||
-                      title.includes('migliori') ||
-                      seen.has(title)) {
-                    return;
-                  }
-
-                  let filmtvRating = null;
-                  const article = $(elem).closest('article');
-                  const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
-                  if (ratingSpan.length > 0) {
-                    const ratingText = ratingSpan.text().trim();
-                    const rating = parseFloat(ratingText);
-                    if (!isNaN(rating) && rating >= 0 && rating <= 10) {
-                      filmtvRating = rating;
+                    if (title.length < 3 ||
+                        title.includes('La recensione') ||
+                        title.includes('Uscito in Italia') ||
+                        title.includes('Uscita in Italia') ||
+                        title.includes('streaming') ||
+                        title.includes('migliori') ||
+                        seen.has(title)) {
+                      return;
                     }
+
+                    let filmtvRating = null;
+                    const article = $(elem).closest('article');
+                    const ratingSpan = article.find('footer [data-updcnt^="voto-ftv-film"]').first();
+                    if (ratingSpan.length > 0) {
+                      const ratingText = ratingSpan.text().trim();
+                      const rating = parseFloat(ratingText);
+                      if (!isNaN(rating) && rating >= 0 && rating <= 10) {
+                        filmtvRating = rating;
+                      }
+                    }
+
+                    seen.add(title);
+                    const yearMatch = filters.match(/anno-(\d{4})/);
+                    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+                    movies.push({
+                      title: title,
+                      year: year,
+                      filmtvRating: filmtvRating
+                    });
                   }
-
-                  seen.add(title);
-                  const yearMatch = filters.match(/anno-(\d{4})/);
-                  const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-
-                  movies.push({
-                    title: title,
-                    year: year,
-                    filmtvRating: filmtvRating
-                  });
-                }
-              });
+                });
+              }
+            } catch (error) {
+              logError(`Error fetching page ${page}:`, error.message);
+              break;
             }
-          } catch (error) {
-            logError(`Error fetching page ${page}:`, error.message);
-            break;
           }
         }
-      }
 
-      if (movies.length === 0) {
-        log(`No movies found for filters: ${filters}`);
-        return [];
-      }
+        if (movies.length === 0) {
+          log(`No movies found for filters: ${filters}`);
+          return [];
+        }
 
-      // Get TMDB details with rate limiting
-      const moviesWithDetails = await Promise.all(
-        movies.map(async (movie) => {
-          try {
-            const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
-            return tmdbMovie;
-          } catch (error) {
-            logError(`Error processing ${movie.title}:`, error.message);
-            return null;
-          }
-        })
-      );
+        // Get TMDB details with rate limiting
+        const moviesWithDetails = await Promise.all(
+          movies.map(async (movie) => {
+            try {
+              const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+              return tmdbMovie;
+            } catch (error) {
+              logError(`Error processing ${movie.title}:`, error.message);
+              return null;
+            }
+          })
+        );
 
-      const results = moviesWithDetails.filter(m => m !== null);
+        const results = moviesWithDetails.filter(m => m !== null);
 
-      // Cache in memory only
-      catalogCache.set(cacheKey, { data: results, timestamp: now });
-      log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
+        // Cache in memory only
+        catalogCache.set(cacheKey, { data: results, timestamp: now });
+        log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
 
-      return results;
+        return results;
     } catch (error) {
       logError('Error fetching filtered list:', error.message);
       return [];
@@ -618,41 +618,41 @@ async function getBestOfYear(year) {
   // Wrap in rate limiter to prevent too many catalogs processing simultaneously
   return rateLimitedCatalogRequest(async () => {
     const promise = (async () => {
-    try {
-      log(`🔄 Fetching fresh catalog for ${year}`);
+      try {
+        log(`🔄 Fetching fresh catalog for ${year}`);
 
-      const filmtvMovies = await scrapeFilmTVList(year);
+        const filmtvMovies = await scrapeFilmTVList(year);
 
-      if (filmtvMovies.length === 0) {
+        if (filmtvMovies.length === 0) {
+          return [];
+        }
+
+        // Get TMDB details with rate limiting
+        const moviesWithDetails = await Promise.all(
+          filmtvMovies.map(async (movie) => {
+            try {
+              const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+              return tmdbMovie;
+            } catch (error) {
+              logError(`Error processing ${movie.title}:`, error.message);
+              return null;
+            }
+          })
+        );
+
+        const results = moviesWithDetails.filter(m => m !== null);
+
+        // Cache in memory only
+        catalogCache.set(cacheKey, { data: results, timestamp: now });
+        log(`✅ Cached catalog for ${year} (${results.length} movies)`);
+
+        return results;
+      } catch (error) {
+        logError('Error fetching best of year:', error.message);
         return [];
+      } finally {
+        inFlightPromises.delete(cacheKey);
       }
-
-      // Get TMDB details with rate limiting
-      const moviesWithDetails = await Promise.all(
-        filmtvMovies.map(async (movie) => {
-          try {
-            const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
-            return tmdbMovie;
-          } catch (error) {
-            logError(`Error processing ${movie.title}:`, error.message);
-            return null;
-          }
-        })
-      );
-
-      const results = moviesWithDetails.filter(m => m !== null);
-
-      // Cache in memory only
-      catalogCache.set(cacheKey, { data: results, timestamp: now });
-      log(`✅ Cached catalog for ${year} (${results.length} movies)`);
-
-      return results;
-    } catch (error) {
-      logError('Error fetching best of year:', error.message);
-      return [];
-    } finally {
-      inFlightPromises.delete(cacheKey);
-    }
     })();
 
     inFlightPromises.set(cacheKey, promise);
