@@ -328,12 +328,16 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
   const decadeStartNum = searchDecadeStart ? parseInt(searchDecadeStart) : null;
   const decadeEndNum = decadeStartNum !== null ? decadeStartNum + 9 : null;
   const decadeMid = decadeStartNum !== null ? decadeStartNum + 5 : null;
+  const searchLower = searchTitle.toLowerCase();
+  const originalSearchLower = originalTitle ? originalTitle.toLowerCase() : null;
   
   // First pass: look for exact matches (highest priority)
   for (const result of searchResults.results) {
     const resultTitle = result.title || '';
+    const resultOriginalTitle = result.original_title || '';
     const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
     const titleLower = resultTitle.toLowerCase();
+    const originalLower = resultOriginalTitle.toLowerCase();
 
     // Skip documentaries, making-of, trailers, etc.
     if (titleLower.includes('making of') || 
@@ -345,7 +349,7 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     }
 
     // Exact title match with year match = perfect match
-    if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+    if (originalTitle && (titleLower === originalSearchLower || originalLower === originalSearchLower)) {
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match, return immediately
       }
@@ -364,7 +368,7 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     }
     
     // Exact match with search title
-    if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
+    if (titleLower === searchLower || originalLower === searchLower) {
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match
       }
@@ -390,8 +394,10 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
   for (const result of searchResults.results) {
     let score = 0;
     const resultTitle = result.title || '';
+    const resultOriginalTitle = result.original_title || '';
     const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
     const titleLower = resultTitle.toLowerCase();
+    const originalLower = resultOriginalTitle.toLowerCase();
 
     // Skip documentaries, making-of, trailers, etc.
     if (titleLower.includes('making of') || 
@@ -403,15 +409,13 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     }
 
     // Exact title match gets highest score
-    if (originalTitle && resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+    if (originalTitle && (titleLower === originalSearchLower || originalLower === originalSearchLower)) {
       score += 200;
-    } else if (resultTitle.toLowerCase() === searchTitle.toLowerCase()) {
+    } else if (titleLower === searchLower || originalLower === searchLower) {
       score += 100;
     } else {
       // Partial match - but only if year matches (to avoid wrong matches)
-      const searchLower = searchTitle.toLowerCase();
-      const resultLower = resultTitle.toLowerCase();
-      if (resultLower.includes(searchLower) || searchLower.includes(resultLower)) {
+      if (titleLower.includes(searchLower) || searchLower.includes(titleLower) || originalLower.includes(searchLower) || searchLower.includes(originalLower)) {
         if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 2) {
           score += 30; // Partial match with year close
         } else if (!searchYearNum && decadeStartNum !== null && resultYear && resultYear >= decadeStartNum && resultYear <= decadeEndNum) {
@@ -443,6 +447,9 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
     if (score > bestScore) {
       bestScore = score;
       bestMatch = result;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H6',location:'scraper-safe.js:findBestMatch',message:'candidate bestMatch',data:{title:resultTitle,origTitle:resultOriginalTitle,year:resultYear,score,bestScore,searchTitle,searchYear:searchYearNum,decadeStart:decadeStartNum},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     }
   }
 
@@ -491,16 +498,19 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
           // Log top 5 results for debugging
           const topResults = searchResults.results.slice(0, 5).map(r => ({
             title: r.title,
+            originalTitle: r.original_title || '',
             year: r.release_date?.substring(0, 4) || 'N/A'
           }));
           log(`🔍 Searching "${originalTitle}" without year filter, top results: ${JSON.stringify(topResults)}`);
           
           for (const result of searchResults.results) {
             const resultTitle = result.title || '';
+            const resultOriginalTitle = result.original_title || '';
             const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
             
             // Skip documentaries/making-of
             const titleLower = resultTitle.toLowerCase();
+            const originalLower = resultOriginalTitle.toLowerCase();
             if (titleLower.includes('making of') || 
                 titleLower.includes('behind the scenes') ||
                 titleLower.includes('documentary') ||
@@ -510,7 +520,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
             
             // Only accept exact title match when searching without year
             // AND the year must be very close (within 2 years) or inside the decade if provided
-            if (resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+            if (titleLower === originalTitle.toLowerCase() || originalLower === originalTitle.toLowerCase()) {
               if (year && resultYear && Math.abs(resultYear - parseInt(year)) <= 2) {
                 log(`✅ Found exact match "${resultTitle}" (${resultYear}) for "${originalTitle}" (expected ${year})`);
                 bestMatch = result;
