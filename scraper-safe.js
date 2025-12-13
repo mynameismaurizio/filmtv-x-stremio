@@ -285,6 +285,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null) {
 }
 
 async function scrapeFilmTVList(year) {
+  const scrapeStart = Date.now();
   const movies = [];
   const seen = new Set();
   const PAGES_TO_SCRAPE = 2; // Limit to 2 pages (40 movies max)
@@ -405,6 +406,11 @@ async function scrapeFilmTVList(year) {
     }
 
     log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H4',location:'scraper-safe.js:scrapeFilmTVList',message:'scrape duration',data:{year,count:movies.length,durationMs:Date.now()-scrapeStart},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
     return movies;
   } catch (error) {
     logError(`Error scraping FilmTV.it for ${year}:`, error.message);
@@ -416,6 +422,7 @@ async function scrapeFilmTVList(year) {
 async function getFilteredList(filters) {
   const cacheKey = `catalog_${filters}`;
   const now = Date.now();
+  const start = Date.now();
 
   // #region agent log
   fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'scraper-safe.js:getFilteredList',message:'entry getFilteredList',data:{cacheKey},timestamp:Date.now()})}).catch(()=>{});
@@ -569,6 +576,7 @@ async function getFilteredList(filters) {
       }
 
       // Get TMDB details with rate limiting
+      const tmdbStart = Date.now();
       const moviesWithDetails = await Promise.all(
         movies.map(async (movie) => {
           try {
@@ -582,6 +590,7 @@ async function getFilteredList(filters) {
       );
 
       const results = moviesWithDetails.filter(m => m !== null);
+      const tmdbDuration = Date.now() - tmdbStart;
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
@@ -589,6 +598,10 @@ async function getFilteredList(filters) {
 
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getFilteredList',message:'success getFilteredList',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getFilteredList',message:'perf getFilteredList',data:{cacheKey,totalDurationMs:Date.now()-start,tmdbDurationMs:tmdbDuration,moviesInput:movies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       return results;
@@ -612,6 +625,7 @@ async function getFilteredList(filters) {
 async function getBestOfYear(year) {
   const cacheKey = `catalog_${year}`;
   const now = Date.now();
+  const start = Date.now();
 
   if (catalogCache.has(cacheKey)) {
     const { data, timestamp } = catalogCache.get(cacheKey);
@@ -642,6 +656,7 @@ async function getBestOfYear(year) {
       }
 
       // Get TMDB details with rate limiting
+      const tmdbStart = Date.now();
       const moviesWithDetails = await Promise.all(
         filmtvMovies.map(async (movie) => {
           try {
@@ -655,6 +670,7 @@ async function getBestOfYear(year) {
       );
 
       const results = moviesWithDetails.filter(m => m !== null);
+      const tmdbDuration = Date.now() - tmdbStart;
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
@@ -662,6 +678,10 @@ async function getBestOfYear(year) {
 
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getBestOfYear',message:'success getBestOfYear',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getBestOfYear',message:'perf getBestOfYear',data:{cacheKey,totalDurationMs:Date.now()-start,tmdbDurationMs:tmdbDuration,moviesInput:filmtvMovies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       return results;
