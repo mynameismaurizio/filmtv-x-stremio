@@ -76,7 +76,7 @@ function buildManifest() {
     resources: ['catalog', 'meta'],
     types: ['movie'],
     catalogs: catalogs,
-    idPrefixes: ['filmtv_'],
+    // idPrefixes removed - we want to handle all movie IDs in meta handler
     // User configuration
     config: [
       {
@@ -309,7 +309,10 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 // Meta handler - returns the same metadata from catalog (with Italian description)
 // This ensures the FilmTV ratings and Italian descriptions persist when viewing movie details
 builder.defineMetaHandler(async ({ type, id, config }) => {
+  log(`🔍 Meta handler called: type=${type}, id=${id}`);
+  
   if (type !== 'movie') {
+    log(`✗ Meta handler: type is not 'movie', returning null`);
     return { meta: null };
   }
 
@@ -327,9 +330,17 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
     let imdbId = id;
     if (id.startsWith('filmtv_')) {
       imdbId = id.replace('filmtv_', '');
+      log(`✓ Extracted IMDB ID from filmtv_ prefix: ${imdbId}`);
+    } else if (id.startsWith('tt')) {
+      imdbId = id;
+      log(`✓ Using IMDB ID directly: ${imdbId}`);
+    } else {
+      log(`⚠️ Meta handler: ID format not recognized: ${id}`);
+      return { meta: null };
     }
 
     // Search for the movie in cached catalogs
+    log(`🔍 Searching for movie ${imdbId} in cached catalogs...`);
     const movie = getMovieByImdbId(imdbId);
     
     if (movie) {
@@ -341,6 +352,7 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
     return { meta: null };
   } catch (error) {
     logError(`✗ Error in meta handler for ${id}:`, error.message);
+    logError('Stack trace:', error.stack);
     return { meta: null };
   }
 });

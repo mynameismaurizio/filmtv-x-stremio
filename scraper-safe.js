@@ -1100,21 +1100,24 @@ async function getAllLists() {
 // Helper function to find a movie by IMDB ID in cached catalogs
 function getMovieByImdbId(imdbId) {
   if (!imdbId || !imdbId.startsWith('tt')) {
+    log(`✗ Invalid IMDB ID format: ${imdbId}`);
     return null;
   }
 
+  log(`🔍 Searching for ${imdbId} in ${catalogCache.size} cached catalogs...`);
+  
   // Search through all cached catalogs
   for (const [cacheKey, cacheData] of catalogCache.entries()) {
     if (cacheData && cacheData.data && Array.isArray(cacheData.data)) {
       const movie = cacheData.data.find(m => m && m.id === imdbId);
       if (movie) {
-        log(`✓ Found movie ${imdbId} in cached catalog ${cacheKey}`);
+        log(`✓ Found movie ${imdbId} in cached catalog ${cacheKey} (${cacheData.data.length} movies in cache)`);
         return movie;
       }
     }
   }
 
-  log(`✗ Movie ${imdbId} not found in any cached catalog`);
+  log(`✗ Movie ${imdbId} not found in any of ${catalogCache.size} cached catalogs`);
   return null;
 }
 
