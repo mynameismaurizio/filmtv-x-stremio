@@ -405,10 +405,11 @@ async function scrapeFilmTVList(year) {
       }
     }
 
-    log(`Scraped ${movies.length} movies from FilmTV.it for ${year}`);
+    const scrapeDuration = Date.now() - scrapeStart;
+    log(`Scraped ${movies.length} movies from FilmTV.it for ${year} in ${scrapeDuration} ms`);
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H4',location:'scraper-safe.js:scrapeFilmTVList',message:'scrape duration',data:{year,count:movies.length,durationMs:Date.now()-scrapeStart},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H4',location:'scraper-safe.js:scrapeFilmTVList',message:'scrape duration',data:{year,count:movies.length,durationMs:scrapeDuration},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     return movies;
@@ -596,13 +597,17 @@ async function getFilteredList(filters) {
       catalogCache.set(cacheKey, { data: results, timestamp: now });
       log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
 
+      const totalDuration = Date.now() - start;
+
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getFilteredList',message:'success getFilteredList',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getFilteredList',message:'perf getFilteredList',data:{cacheKey,totalDurationMs:Date.now()-start,tmdbDurationMs:tmdbDuration,moviesInput:movies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getFilteredList',message:'perf getFilteredList',data:{cacheKey,totalDurationMs:totalDuration,tmdbDurationMs:tmdbDuration,moviesInput:movies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
+
+      log(`⏱️ getFilteredList ${filters}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${movies.length}, out ${results.length}`);
 
       return results;
     } catch (error) {
@@ -676,13 +681,17 @@ async function getBestOfYear(year) {
       catalogCache.set(cacheKey, { data: results, timestamp: now });
       log(`✅ Cached catalog for ${year} (${results.length} movies)`);
 
+      const totalDuration = Date.now() - start;
+
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'scraper-safe.js:getBestOfYear',message:'success getBestOfYear',data:{cacheKey,count:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getBestOfYear',message:'perf getBestOfYear',data:{cacheKey,totalDurationMs:Date.now()-start,tmdbDurationMs:tmdbDuration,moviesInput:filmtvMovies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/20a47d38-31c8-4ae5-a382-7068e77f739d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'perf1',hypothesisId:'H5',location:'scraper-safe.js:getBestOfYear',message:'perf getBestOfYear',data:{cacheKey,totalDurationMs:totalDuration,tmdbDurationMs:tmdbDuration,moviesInput:filmtvMovies.length,moviesOutput:results.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
+
+      log(`⏱️ getBestOfYear ${year}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${filmtvMovies.length}, out ${results.length}`);
 
       return results;
     } catch (error) {
