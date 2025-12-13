@@ -54,6 +54,60 @@ const catalogCache = new Map();
 // In-flight promises to prevent duplicate concurrent requests
 const inFlightPromises = new Map();
 
+// Request tracking for monitoring (prevent bans)
+const requestHistory = {
+  http: [], // Array of timestamps for HTTP requests
+  tmdb: [], // Array of timestamps for TMDB requests
+  catalogs: [] // Array of timestamps for catalog processing
+};
+
+// Clean old entries (older than 1 hour)
+function cleanRequestHistory() {
+  const oneHourAgo = Date.now() - (60 * 60 * 1000);
+  requestHistory.http = requestHistory.http.filter(ts => ts > oneHourAgo);
+  requestHistory.tmdb = requestHistory.tmdb.filter(ts => ts > oneHourAgo);
+  requestHistory.catalogs = requestHistory.catalogs.filter(ts => ts > oneHourAgo);
+}
+
+// Get request counts for last N minutes
+function getRequestStats(minutes = 1) {
+  cleanRequestHistory();
+  const cutoff = Date.now() - (minutes * 60 * 1000);
+  
+  const httpCount = requestHistory.http.filter(ts => ts > cutoff).length;
+  const tmdbCount = requestHistory.tmdb.filter(ts => ts > cutoff).length;
+  const catalogCount = requestHistory.catalogs.filter(ts => ts > cutoff).length;
+  
+  return { httpCount, tmdbCount, catalogCount, minutes };
+}
+
+// Log usage stats periodically
+let lastStatsLog = Date.now();
+const STATS_LOG_INTERVAL = 5 * 60 * 1000; // Every 5 minutes
+
+function logUsageStats() {
+  const now = Date.now();
+  if (now - lastStatsLog < STATS_LOG_INTERVAL) return;
+  
+  lastStatsLog = now;
+  const stats1min = getRequestStats(1);
+  const stats5min = getRequestStats(5);
+  const stats60min = getRequestStats(60);
+  
+  log('📊 Usage Stats:');
+  log(`  Last 1min: ${stats1min.httpCount} HTTP, ${stats1min.tmdbCount} TMDB, ${stats1min.catalogCount} catalogs`);
+  log(`  Last 5min: ${stats5min.httpCount} HTTP, ${stats5min.tmdbCount} TMDB, ${stats5min.catalogCount} catalogs`);
+  log(`  Last 60min: ${stats60min.httpCount} HTTP, ${stats60min.tmdbCount} TMDB, ${stats60min.catalogCount} catalogs`);
+  
+  // Warning if too many requests
+  if (stats1min.tmdbCount > 100) {
+    logError('⚠️ WARNING: High TMDB usage in last minute! Consider reducing rate limit.');
+  }
+  if (stats5min.tmdbCount > 300) {
+    logError('⚠️ WARNING: High TMDB usage in last 5 minutes! Consider reducing rate limit.');
+  }
+}
+
 // Rate limiting helper for HTTP requests
 async function rateLimitedRequest(fn) {
   return new Promise((resolve, reject) => {
@@ -67,6 +121,8 @@ async function rateLimitedRequest(fn) {
       try {
         await new Promise(resolve => setTimeout(resolve, REQUEST_DELAY));
         const result = await fn();
+        // Track request (check if it's TMDB by checking URL in fn result or context)
+        requestHistory.http.push(Date.now());
         resolve(result);
       } catch (error) {
         reject(error);
@@ -160,6 +216,10 @@ async function fetchFromTMDB(endpoint, params = {}) {
 
   return rateLimitedRequest(async () => {
     try {
+      // Track TMDB request
+      requestHistory.tmdb.push(Date.now());
+      logUsageStats(); // Log stats periodically
+      
       const response = await axios.get(url, {
         params: {
           api_key: TMDB_API_KEY,
@@ -448,6 +508,8 @@ async function getFilteredList(filters) {
   // Wrap in rate limiter to prevent too many catalogs processing simultaneously
   const promise = rateLimitedCatalogRequest(async () => {
     try {
+      // Track catalog processing
+      requestHistory.catalogs.push(Date.now());
       log(`🔄 Fetching fresh catalog for filters: ${filters}`);
 
       const movies = [];
@@ -579,13 +641,27 @@ async function getFilteredList(filters) {
 
       // Get TMDB details with rate limiting
       const tmdbStart = Date.now();
+      let notFoundCount = 0;
+      let noImdbIdCount = 0;
+      const notFoundTitles = [];
+      const noImdbIdTitles = [];
+      
       const moviesWithDetails = await Promise.all(
         movies.map(async (movie) => {
           try {
             const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            if (!tmdbMovie) {
+              notFoundCount++;
+              notFoundTitles.push(movie.title);
+            } else if (!tmdbMovie.imdb_id || !tmdbMovie.imdb_id.startsWith('tt')) {
+              noImdbIdCount++;
+              noImdbIdTitles.push(tmdbMovie.title || movie.title);
+            }
             return tmdbMovie;
           } catch (error) {
             logError(`Error processing ${movie.title}:`, error.message);
+            notFoundCount++;
+            notFoundTitles.push(movie.title);
             return null;
           }
         })
@@ -593,6 +669,17 @@ async function getFilteredList(filters) {
 
       const results = moviesWithDetails.filter(m => m !== null);
       const tmdbDuration = Date.now() - tmdbStart;
+      
+      // Log filtering details
+      if (notFoundCount > 0 || noImdbIdCount > 0) {
+        log(`📊 Filtering stats for ${filters}: ${movies.length} scraped, ${results.length} returned`);
+        if (notFoundCount > 0) {
+          log(`  ❌ Not found on TMDB: ${notFoundCount} (${notFoundTitles.slice(0, 3).join(', ')}${notFoundTitles.length > 3 ? '...' : ''})`);
+        }
+        if (noImdbIdCount > 0) {
+          log(`  ⚠️ No IMDB ID: ${noImdbIdCount} (${noImdbIdTitles.slice(0, 3).join(', ')}${noImdbIdTitles.length > 3 ? '...' : ''})`);
+        }
+      }
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
@@ -653,6 +740,8 @@ async function getBestOfYear(year) {
   // Wrap in rate limiter to prevent too many catalogs processing simultaneously
   const promise = rateLimitedCatalogRequest(async () => {
     try {
+      // Track catalog processing
+      requestHistory.catalogs.push(Date.now());
       log(`🔄 Fetching fresh catalog for ${year}`);
 
       const filmtvMovies = await scrapeFilmTVList(year);
@@ -663,13 +752,27 @@ async function getBestOfYear(year) {
 
       // Get TMDB details with rate limiting
       const tmdbStart = Date.now();
+      let notFoundCount = 0;
+      let noImdbIdCount = 0;
+      const notFoundTitles = [];
+      const noImdbIdTitles = [];
+      
       const moviesWithDetails = await Promise.all(
         filmtvMovies.map(async (movie) => {
           try {
             const tmdbMovie = await searchMovieOnTMDB(movie.title, movie.year, movie.filmtvRating);
+            if (!tmdbMovie) {
+              notFoundCount++;
+              notFoundTitles.push(movie.title);
+            } else if (!tmdbMovie.imdb_id || !tmdbMovie.imdb_id.startsWith('tt')) {
+              noImdbIdCount++;
+              noImdbIdTitles.push(tmdbMovie.title || movie.title);
+            }
             return tmdbMovie;
           } catch (error) {
             logError(`Error processing ${movie.title}:`, error.message);
+            notFoundCount++;
+            notFoundTitles.push(movie.title);
             return null;
           }
         })
@@ -677,6 +780,17 @@ async function getBestOfYear(year) {
 
       const results = moviesWithDetails.filter(m => m !== null);
       const tmdbDuration = Date.now() - tmdbStart;
+      
+      // Log filtering details
+      if (notFoundCount > 0 || noImdbIdCount > 0) {
+        log(`📊 Filtering stats for ${year}: ${filmtvMovies.length} scraped, ${results.length} returned`);
+        if (notFoundCount > 0) {
+          log(`  ❌ Not found on TMDB: ${notFoundCount} (${notFoundTitles.slice(0, 3).join(', ')}${notFoundTitles.length > 3 ? '...' : ''})`);
+        }
+        if (noImdbIdCount > 0) {
+          log(`  ⚠️ No IMDB ID: ${noImdbIdCount} (${noImdbIdTitles.slice(0, 3).join(', ')}${noImdbIdTitles.length > 3 ? '...' : ''})`);
+        }
+      }
 
       // Cache in memory only
       catalogCache.set(cacheKey, { data: results, timestamp: now });
