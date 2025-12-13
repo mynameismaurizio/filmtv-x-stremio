@@ -585,12 +585,12 @@ async function getFilteredList(filters) {
         log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
 
         return results;
-    } catch (error) {
-      logError('Error fetching filtered list:', error.message);
-      return [];
-    } finally {
-      inFlightPromises.delete(cacheKey);
-    }
+      } catch (error) {
+        logError('Error fetching filtered list:', error.message);
+        return [];
+      } finally {
+        inFlightPromises.delete(cacheKey);
+      }
     })();
 
     inFlightPromises.set(cacheKey, promise);
