@@ -346,8 +346,13 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match, return immediately
       }
-      if (!searchYearNum || !resultYear || Math.abs(resultYear - searchYearNum) <= 2) {
-        return result; // Exact title match, year close enough
+      // Only accept if year is very close (within 1 year) or if we have no year info
+      if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
+        return result; // Exact title match, year very close
+      }
+      // If no year info at all, accept it (but this should be rare)
+      if (!searchYearNum || !resultYear) {
+        return result; // Exact title match, no year info
       }
     }
     
@@ -356,8 +361,13 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
       if (searchYearNum && resultYear === searchYearNum) {
         return result; // Perfect match
       }
-      if (!searchYearNum || !resultYear || Math.abs(resultYear - searchYearNum) <= 2) {
-        return result; // Exact title match, year close enough
+      // Only accept if year is very close (within 1 year) or if we have no year info
+      if (searchYearNum && resultYear && Math.abs(resultYear - searchYearNum) <= 1) {
+        return result; // Exact title match, year very close
+      }
+      // If no year info at all, accept it (but this should be rare)
+      if (!searchYearNum || !resultYear) {
+        return result; // Exact title match, no year info
       }
     }
   }
@@ -447,6 +457,7 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
       }
       
       // If still no good match, try without year filter (last resort)
+      // But be VERY strict - only accept exact matches when searching without year
       if (!bestMatch) {
         searchResults = await fetchFromTMDB('/search/movie', {
           query: originalTitle,
@@ -454,7 +465,44 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
         });
         
         if (searchResults.results && searchResults.results.length > 0) {
-          bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle);
+          // When searching without year, only accept exact title matches
+          // Log top 5 results for debugging
+          const topResults = searchResults.results.slice(0, 5).map(r => ({
+            title: r.title,
+            year: r.release_date?.substring(0, 4) || 'N/A'
+          }));
+          log(`🔍 Searching "${originalTitle}" without year filter, top results: ${JSON.stringify(topResults)}`);
+          
+          for (const result of searchResults.results) {
+            const resultTitle = result.title || '';
+            const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
+            
+            // Skip documentaries/making-of
+            const titleLower = resultTitle.toLowerCase();
+            if (titleLower.includes('making of') || 
+                titleLower.includes('behind the scenes') ||
+                titleLower.includes('documentary') ||
+                titleLower.includes('trailer')) {
+              continue;
+            }
+            
+            // Only accept exact title match when searching without year
+            // AND the year must be very close (within 2 years)
+            if (resultTitle.toLowerCase() === originalTitle.toLowerCase()) {
+              if (year && resultYear && Math.abs(resultYear - parseInt(year)) <= 2) {
+                log(`✅ Found exact match "${resultTitle}" (${resultYear}) for "${originalTitle}" (expected ${year})`);
+                bestMatch = result;
+                break;
+              } else if (year && resultYear) {
+                log(`⚠️ Exact title match "${resultTitle}" but year mismatch: ${resultYear} vs ${year} (diff: ${Math.abs(resultYear - parseInt(year))})`);
+              }
+              // If no year info, don't accept it - too risky
+            }
+          }
+          
+          if (!bestMatch) {
+            log(`❌ No acceptable match found for "${originalTitle}" (expected year: ${year})`);
+          }
         }
       }
     }
