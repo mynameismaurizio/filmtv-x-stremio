@@ -30,10 +30,10 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 // Rate limiting configuration
-// Faster on Railway: more TMDB parallelism, shorter delay
-const REQUEST_DELAY = 150; // delay between requests (ms)
-const MAX_CONCURRENT_REQUESTS = 6; // TMDB/http requests in parallel
-const MAX_CONCURRENT_CATALOGS = 3; // catalogs processed simultaneously
+// Optimized for Railway: aggressive parallelism for fast catalog loading
+const REQUEST_DELAY = 50; // delay between requests (ms) - reduced for speed
+const MAX_CONCURRENT_REQUESTS = 20; // TMDB/http requests in parallel - increased significantly
+const MAX_CONCURRENT_CATALOGS = 5; // catalogs processed simultaneously - increased
 let activeRequests = 0;
 let activeCatalogRequests = 0;
 const requestQueue = [];
@@ -46,7 +46,7 @@ function setTMDBApiKey(apiKey) {
 
 // In-memory cache only (NO file system writes)
 const cache = new Map();
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+const CACHE_DURATION = 1000 * 60 * 60 * 2; // 2 hours (increased for better performance)
 
 // Catalog cache (in-memory only)
 const catalogCache = new Map();
@@ -188,7 +188,7 @@ async function fetchWithCache(url) {
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1'
         },
-        timeout: 8000, // 8 second timeout (reduced to prevent resource exhaustion)
+        timeout: 5000, // 5 second timeout (optimized for speed)
         maxRedirects: 5
       });
 
@@ -226,7 +226,7 @@ async function fetchFromTMDB(endpoint, params = {}) {
           language: 'it-IT',
           ...params
         },
-        timeout: 8000, // 8 second timeout (reduced to prevent resource exhaustion)
+        timeout: 5000, // 5 second timeout (optimized for speed)
         headers: {
           'Accept': 'application/json'
         }
@@ -251,7 +251,7 @@ function convertTMDBToStremio(tmdbMovie) {
   // TMDB uses numeric IDs, but we need IMDB IDs for Stremio
   const imdbId = tmdbMovie.imdb_id;
   if (!imdbId || !imdbId.startsWith('tt')) {
-    log(`Skipping movie without valid IMDB ID: ${tmdbMovie.title}`);
+    // Reduced logging for performance - only log in debug mode if needed
     return null;
   }
 
@@ -457,79 +457,114 @@ function findBestMatch(searchResults, searchTitle, searchYear, originalTitle = n
 
 async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle = null, decadeStart = null) {
   try {
-    // First try with Italian title + year
-    let searchResults = await fetchFromTMDB('/search/movie', {
-      query: title,
-      year: year,
-      include_adult: false
-    });
-
-    let bestMatch = null;
-    if (searchResults.results && searchResults.results.length > 0) {
-      bestMatch = findBestMatch(searchResults, title, year, originalTitle, decadeStart);
-    }
-
-    // If no good match and we have original title, try with that + year
-    if (!bestMatch && originalTitle && originalTitle !== title) {
-      log(`🔄 Retrying search with original title: ${originalTitle} (was: ${title})`);
-      searchResults = await fetchFromTMDB('/search/movie', {
-        query: originalTitle,
+    // Optimized: Try both titles in parallel if we have original title
+    const searchPromises = [];
+    
+    // Always search with Italian title first
+    searchPromises.push(
+      fetchFromTMDB('/search/movie', {
+        query: title,
         year: year,
         include_adult: false
-      });
-      
-      if (searchResults.results && searchResults.results.length > 0) {
-        bestMatch = findBestMatch(searchResults, originalTitle, year, originalTitle, decadeStart);
+      }).then(results => ({ results, searchTitle: title, isOriginal: false }))
+    );
+    
+    // If we have original title and it's different, search in parallel
+    if (originalTitle && originalTitle !== title) {
+      searchPromises.push(
+        fetchFromTMDB('/search/movie', {
+          query: originalTitle,
+          year: year,
+          include_adult: false
+        }).then(results => ({ results, searchTitle: originalTitle, isOriginal: true }))
+      );
+    }
+    
+    // Wait for all searches to complete
+    const searchResults = await Promise.all(searchPromises);
+    
+    let bestMatch = null;
+    let bestScore = -1;
+    
+    // Evaluate all results together
+    for (const { results, searchTitle, isOriginal } of searchResults) {
+      if (results.results && results.results.length > 0) {
+        const match = findBestMatch(results, searchTitle, year, isOriginal ? originalTitle : null, decadeStart);
+        if (match) {
+          // Score the match quality
+          const matchYear = match.release_date ? parseInt(match.release_date.substring(0, 4)) : null;
+          let score = 0;
+          
+          // Exact title match
+          const matchTitle = (match.title || '').toLowerCase();
+          const matchOriginal = (match.original_title || '').toLowerCase();
+          const searchLower = searchTitle.toLowerCase();
+          
+          if (matchTitle === searchLower || matchOriginal === searchLower) {
+            score += 100;
+          }
+          
+          // Year match
+          if (year && matchYear === parseInt(year)) {
+            score += 50;
+          } else if (year && matchYear && Math.abs(matchYear - parseInt(year)) <= 1) {
+            score += 20;
+          } else if (decadeStart && matchYear && matchYear >= decadeStart && matchYear <= decadeStart + 9) {
+            score += 15;
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = match;
+          }
+        }
       }
+    }
+    
+    // Only retry without year if we have a very good reason (exact title match but year off)
+    if (!bestMatch && originalTitle && originalTitle !== title) {
+      // Only retry if we got close matches but year was off
+      const hasCloseMatch = searchResults.some(({ results }) => 
+        results.results && results.results.some(r => {
+          const rTitle = (r.title || '').toLowerCase();
+          const rOriginal = (r.original_title || '').toLowerCase();
+          const origLower = originalTitle.toLowerCase();
+          return rTitle === origLower || rOriginal === origLower;
+        })
+      );
       
-      // If still no good match, try without year filter (last resort)
-      // But be VERY strict - only accept exact matches when searching without year
-      if (!bestMatch) {
-        searchResults = await fetchFromTMDB('/search/movie', {
+      if (hasCloseMatch) {
+        log(`🔄 Retrying search with original title (no year): ${originalTitle} (was: ${title})`);
+        const searchResultsNoYear = await fetchFromTMDB('/search/movie', {
           query: originalTitle,
           include_adult: false
         });
         
-        if (searchResults.results && searchResults.results.length > 0) {
-          // When searching without year, only accept exact title matches
-          // Log top 5 results for debugging
-          const topResults = searchResults.results.slice(0, 5).map(r => ({
-            title: r.title,
-            originalTitle: r.original_title || '',
-            year: r.release_date?.substring(0, 4) || 'N/A'
-          }));
-          log(`🔍 Searching "${originalTitle}" without year filter, top results: ${JSON.stringify(topResults)}`);
-          
-          for (const result of searchResults.results) {
-            const resultTitle = result.title || '';
-            const resultOriginalTitle = result.original_title || '';
+        if (searchResultsNoYear.results && searchResultsNoYear.results.length > 0) {
+          // Only accept exact matches with reasonable year
+          for (const result of searchResultsNoYear.results) {
+            const resultTitle = (result.title || '').toLowerCase();
+            const resultOriginalTitle = (result.original_title || '').toLowerCase();
             const resultYear = result.release_date ? parseInt(result.release_date.substring(0, 4)) : null;
+            const origLower = originalTitle.toLowerCase();
             
             // Skip documentaries/making-of
-            const titleLower = resultTitle.toLowerCase();
-            const originalLower = resultOriginalTitle.toLowerCase();
-            if (titleLower.includes('making of') || 
-                titleLower.includes('behind the scenes') ||
-                titleLower.includes('documentary') ||
-                titleLower.includes('trailer')) {
+            if (resultTitle.includes('making of') || 
+                resultTitle.includes('behind the scenes') ||
+                resultTitle.includes('documentary') ||
+                resultTitle.includes('trailer')) {
               continue;
             }
             
-            // Only accept exact title match when searching without year
-            // AND the year must be very close (within 2 years) or inside the decade if provided
-            if (titleLower === originalTitle.toLowerCase() || originalLower === originalTitle.toLowerCase()) {
+            // Only accept exact title match with year within 2 years or in decade
+            if ((resultTitle === origLower || resultOriginalTitle === origLower)) {
               if (year && resultYear && Math.abs(resultYear - parseInt(year)) <= 2) {
-                log(`✅ Found exact match "${resultTitle}" (${resultYear}) for "${originalTitle}" (expected ${year})`);
                 bestMatch = result;
                 break;
               } else if (!year && decadeStart !== null && resultYear && resultYear >= decadeStart && resultYear <= decadeStart + 9) {
-                log(`✅ Found exact match "${resultTitle}" (${resultYear}) within decade ${decadeStart}s for "${originalTitle}"`);
                 bestMatch = result;
                 break;
-              } else if (year && resultYear) {
-                log(`⚠️ Exact title match "${resultTitle}" but year mismatch: ${resultYear} vs ${year} (diff: ${Math.abs(resultYear - parseInt(year))})`);
               }
-              // If no year info and no decade, don't accept it - too risky
             }
           }
           
@@ -544,19 +579,21 @@ async function searchMovieOnTMDB(title, year, filmtvRating = null, originalTitle
       return null;
     }
 
-    // Log which movie was selected for debugging
-    if (searchResults.results.length > 1) {
-      log(`🎯 Selected "${bestMatch.title}" (${bestMatch.release_date?.substring(0,4) || 'N/A'}) from ${searchResults.results.length} results for "${title}"`);
+    // Log which movie was selected for debugging (only if multiple results)
+    // Reduced logging for performance
+    if (bestMatch && searchResults.some(sr => sr.results?.results?.length > 1)) {
+      const totalResults = searchResults.reduce((sum, sr) => sum + (sr.results?.results?.length || 0), 0);
+      if (totalResults > 3) {
+        log(`🎯 Selected "${bestMatch.title}" (${bestMatch.release_date?.substring(0,4) || 'N/A'}) from ${totalResults} results for "${title}"`);
+      }
     }
 
     const tmdbId = bestMatch.id;
     const fullMovie = await getMovieWithIMDB(tmdbId);
     if (!fullMovie) return null;
 
-    // Log if movie doesn't have IMDB ID
-    if (!fullMovie.imdb_id || !fullMovie.imdb_id.startsWith('tt')) {
-      log(`⚠️ Movie "${fullMovie.title}" (TMDB ID: ${tmdbId}) found but has no IMDB ID`);
-    }
+    // Log if movie doesn't have IMDB ID (reduced logging for performance)
+    // Only log if it's a significant issue
 
     if (filmtvRating) {
       fullMovie.filmtvRating = filmtvRating;
@@ -914,47 +951,54 @@ async function getFilteredList(filters) {
         return [];
       }
 
-      // Get TMDB details with rate limiting
+      // Get TMDB details with parallel processing (optimized)
       const tmdbStart = Date.now();
       let notFoundCount = 0;
       let noImdbIdCount = 0;
       const notFoundTitles = [];
       const noImdbIdTitles = [];
       
-      const moviesWithDetails = await Promise.all(
-        movies.map(async (movie) => {
-          try {
-            // First try with Italian title, then with original title if available
-            let tmdbMovie = await searchMovieOnTMDB(
-              movie.title,
-              movie.year,
-              movie.filmtvRating,
-              movie.originalTitle || null,
-              movie.decadeStart || null
-            );
-            
-            if (!tmdbMovie) {
+      // Process movies in parallel batches for better performance
+      const BATCH_SIZE = 10;
+      const moviesWithDetails = [];
+      
+      for (let i = 0; i < movies.length; i += BATCH_SIZE) {
+        const batch = movies.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (movie) => {
+            try {
+              let tmdbMovie = await searchMovieOnTMDB(
+                movie.title,
+                movie.year,
+                movie.filmtvRating,
+                movie.originalTitle || null,
+                movie.decadeStart || null
+              );
+              
+              if (!tmdbMovie) {
+                notFoundCount++;
+                notFoundTitles.push(movie.title);
+              } else if (!tmdbMovie.id || !tmdbMovie.id.startsWith('tt')) {
+                noImdbIdCount++;
+                noImdbIdTitles.push(tmdbMovie.name || movie.title);
+              }
+              return tmdbMovie;
+            } catch (error) {
+              // Reduced error logging for performance
               notFoundCount++;
               notFoundTitles.push(movie.title);
-            } else if (!tmdbMovie.imdb_id || !tmdbMovie.imdb_id.startsWith('tt')) {
-              noImdbIdCount++;
-              noImdbIdTitles.push(tmdbMovie.title || movie.title);
+              return null;
             }
-            return tmdbMovie;
-          } catch (error) {
-            logError(`Error processing ${movie.title}:`, error.message);
-            notFoundCount++;
-            notFoundTitles.push(movie.title);
-            return null;
-          }
-        })
-      );
+          })
+        );
+        moviesWithDetails.push(...batchResults);
+      }
 
       const results = moviesWithDetails.filter(m => m !== null);
       const tmdbDuration = Date.now() - tmdbStart;
       
-      // Log filtering details
-      if (notFoundCount > 0 || noImdbIdCount > 0) {
+      // Log filtering details (reduced verbosity for performance)
+      if ((notFoundCount > 0 || noImdbIdCount > 0) && (notFoundCount + noImdbIdCount) > 2) {
         log(`📊 Filtering stats for ${filters}: ${movies.length} scraped, ${results.length} returned`);
         if (notFoundCount > 0) {
           log(`  ❌ Not found on TMDB: ${notFoundCount} (${notFoundTitles.slice(0, 3).join(', ')}${notFoundTitles.length > 3 ? '...' : ''})`);
@@ -1017,41 +1061,48 @@ async function getBestOfYear(year) {
         return [];
       }
 
-      // Get TMDB details with rate limiting
+      // Get TMDB details with parallel processing (optimized)
       const tmdbStart = Date.now();
       let notFoundCount = 0;
       let noImdbIdCount = 0;
       const notFoundTitles = [];
       const noImdbIdTitles = [];
       
-      const moviesWithDetails = await Promise.all(
-        filmtvMovies.map(async (movie) => {
-          try {
-            // First try with Italian title, then with original title if available
-            let tmdbMovie = await searchMovieOnTMDB(
-              movie.title,
-              movie.year,
-              movie.filmtvRating,
-              movie.originalTitle || null,
-              movie.decadeStart || null
-            );
-            
-            if (!tmdbMovie) {
+      // Process movies in parallel batches for better performance
+      const BATCH_SIZE = 10;
+      const moviesWithDetails = [];
+      
+      for (let i = 0; i < filmtvMovies.length; i += BATCH_SIZE) {
+        const batch = filmtvMovies.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (movie) => {
+            try {
+              let tmdbMovie = await searchMovieOnTMDB(
+                movie.title,
+                movie.year,
+                movie.filmtvRating,
+                movie.originalTitle || null,
+                movie.decadeStart || null
+              );
+              
+              if (!tmdbMovie) {
+                notFoundCount++;
+                notFoundTitles.push(movie.title);
+              } else if (!tmdbMovie.id || !tmdbMovie.id.startsWith('tt')) {
+                noImdbIdCount++;
+                noImdbIdTitles.push(tmdbMovie.name || movie.title);
+              }
+              return tmdbMovie;
+            } catch (error) {
+              // Reduced error logging for performance
               notFoundCount++;
               notFoundTitles.push(movie.title);
-            } else if (!tmdbMovie.imdb_id || !tmdbMovie.imdb_id.startsWith('tt')) {
-              noImdbIdCount++;
-              noImdbIdTitles.push(tmdbMovie.title || movie.title);
+              return null;
             }
-            return tmdbMovie;
-          } catch (error) {
-            logError(`Error processing ${movie.title}:`, error.message);
-            notFoundCount++;
-            notFoundTitles.push(movie.title);
-            return null;
-          }
-        })
-      );
+          })
+        );
+        moviesWithDetails.push(...batchResults);
+      }
 
       const results = moviesWithDetails.filter(m => m !== null);
       const tmdbDuration = Date.now() - tmdbStart;
