@@ -51,6 +51,47 @@ const CACHE_DURATION = 1000 * 60 * 60 * 2; // 2 hours (increased for better perf
 // Catalog cache (in-memory only)
 const catalogCache = new Map();
 
+// Response time tracking
+const responseTimeStats = {
+  catalog: [],
+  meta: [],
+  tmdb: []
+};
+
+// Track slow operations (> 5 seconds)
+function trackResponseTime(type, duration, details = {}) {
+  if (duration > 5000) {
+    log(`⏱️ Slow ${type} operation: ${duration}ms`, details);
+  }
+  
+  const stats = responseTimeStats[type] || [];
+  stats.push({ duration, timestamp: Date.now(), ...details });
+  
+  // Keep only last 100 entries
+  if (stats.length > 100) {
+    stats.shift();
+  }
+  responseTimeStats[type] = stats;
+}
+
+// Get response time statistics
+function getResponseTimeStats(type, minutes = 5) {
+  const stats = responseTimeStats[type] || [];
+  const cutoff = Date.now() - (minutes * 60 * 1000);
+  const recent = stats.filter(s => s.timestamp > cutoff);
+  
+  if (recent.length === 0) return null;
+  
+  const durations = recent.map(s => s.duration);
+  return {
+    count: recent.length,
+    avg: durations.reduce((a, b) => a + b, 0) / durations.length,
+    min: Math.min(...durations),
+    max: Math.max(...durations),
+    p95: durations.sort((a, b) => a - b)[Math.floor(durations.length * 0.95)]
+  };
+}
+
 // In-flight promises to prevent duplicate concurrent requests
 const inFlightPromises = new Map();
 
@@ -215,6 +256,7 @@ async function fetchFromTMDB(endpoint, params = {}) {
   }
 
   return rateLimitedRequest(async () => {
+    const tmdbStart = Date.now();
     try {
       // Track TMDB request
       requestHistory.tmdb.push(Date.now());
@@ -232,9 +274,15 @@ async function fetchFromTMDB(endpoint, params = {}) {
         }
       });
 
+      const tmdbDuration = Date.now() - tmdbStart;
+      trackResponseTime('tmdb', tmdbDuration, { endpoint });
+      
       cache.set(cacheKey, { data: response.data, timestamp: now });
       return response.data;
     } catch (error) {
+      const tmdbDuration = Date.now() - tmdbStart;
+      trackResponseTime('tmdb', tmdbDuration, { endpoint, error: true });
+      
       logError('TMDB API Error:', error.message);
       if (error.response) {
         logError('Status:', error.response.status);
@@ -1013,6 +1061,9 @@ async function getFilteredList(filters) {
       log(`✅ Cached catalog for ${filters} (${results.length} movies)`);
 
       const totalDuration = Date.now() - start;
+      
+      // Track response time
+      trackResponseTime('catalog', totalDuration, { filters, moviesIn: movies.length, moviesOut: results.length });
 
       log(`⏱️ getFilteredList ${filters}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${movies.length}, out ${results.length}`);
 
@@ -1123,6 +1174,9 @@ async function getBestOfYear(year) {
       log(`✅ Cached catalog for ${year} (${results.length} movies)`);
 
       const totalDuration = Date.now() - start;
+      
+      // Track response time
+      trackResponseTime('catalog', totalDuration, { year, moviesIn: filmtvMovies.length, moviesOut: results.length });
 
       log(`⏱️ getBestOfYear ${year}: total ${totalDuration} ms, tmdb ${tmdbDuration} ms, movies in ${filmtvMovies.length}, out ${results.length}`);
 
@@ -1200,12 +1254,101 @@ async function getMovieByImdbIdFromTMDB(imdbId) {
   }
 }
 
+// Pre-warm popular catalogs on startup
+async function prewarmPopularCatalogs() {
+  if (!TMDB_API_KEY) {
+    log('⚠️ Cannot pre-warm catalogs: No TMDB API key available');
+    return;
+  }
+  
+  log('🔥 Pre-warming popular catalogs...');
+  const popularCatalogs = [
+    'anno-2025',
+    'anno-2024',
+    'anno-2023',
+    'anni-2020',
+    'anni-2010'
+  ];
+  
+  // Pre-warm in parallel (but limited concurrency)
+  const prewarmPromises = popularCatalogs.map(async (filter) => {
+    try {
+      const start = Date.now();
+      await getFilteredList(filter);
+      const duration = Date.now() - start;
+      log(`✅ Pre-warmed ${filter} in ${duration}ms`);
+    } catch (error) {
+      logError(`❌ Failed to pre-warm ${filter}:`, error.message);
+    }
+  });
+  
+  // Process 2 at a time to avoid overwhelming on startup
+  for (let i = 0; i < prewarmPromises.length; i += 2) {
+    await Promise.all(prewarmPromises.slice(i, i + 2));
+  }
+  
+  log('✅ Pre-warming complete');
+}
+
+// Background cache refresh for popular catalogs
+let cacheRefreshInterval = null;
+
+function startCacheRefresh() {
+  if (cacheRefreshInterval) {
+    clearInterval(cacheRefreshInterval);
+  }
+  
+  // Refresh caches every 90 minutes (before 2 hour expiry)
+  cacheRefreshInterval = setInterval(async () => {
+    if (!TMDB_API_KEY) return;
+    
+    log('🔄 Background cache refresh started...');
+    const popularCatalogs = [
+      'anno-2025',
+      'anno-2024',
+      'anno-2023'
+    ];
+    
+    // Refresh in background (low priority)
+    popularCatalogs.forEach(async (filter) => {
+      try {
+        // Check if cache is getting old (> 1.5 hours)
+        const cacheKey = `catalog_${filter}`;
+        if (catalogCache.has(cacheKey)) {
+          const { timestamp } = catalogCache.get(cacheKey);
+          const age = Date.now() - timestamp;
+          if (age > (1000 * 60 * 90)) { // 90 minutes
+            log(`🔄 Refreshing cache for ${filter}...`);
+            await getFilteredList(filter);
+          }
+        }
+      } catch (error) {
+        // Silent fail for background refresh
+      }
+    });
+  }, 1000 * 60 * 30); // Check every 30 minutes
+  
+  log('🔄 Background cache refresh scheduled (every 30 minutes)');
+}
+
+function stopCacheRefresh() {
+  if (cacheRefreshInterval) {
+    clearInterval(cacheRefreshInterval);
+    cacheRefreshInterval = null;
+  }
+}
+
 module.exports = {
   getBestOfYear,
   getFilteredList,
   getAllLists,
   setTMDBApiKey,
   getMovieByImdbId,
-  getMovieByImdbIdFromTMDB
+  getMovieByImdbIdFromTMDB,
+  prewarmPopularCatalogs,
+  startCacheRefresh,
+  stopCacheRefresh,
+  getResponseTimeStats,
+  trackResponseTime
 };
 

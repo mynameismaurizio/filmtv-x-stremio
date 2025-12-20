@@ -1,5 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk');
-const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey, getMovieByImdbId, getMovieByImdbIdFromTMDB } = require('./scraper-safe');
+const { getBestOfYear, getFilteredList, getAllLists, setTMDBApiKey, getMovieByImdbId, getMovieByImdbIdFromTMDB, prewarmPopularCatalogs, startCacheRefresh, getResponseTimeStats } = require('./scraper-safe');
 
 // Logging helper with timestamps
 function getTimestamp() {
@@ -198,6 +198,8 @@ const builder = new addonBuilder(buildManifest());
 
 // Catalog handler
 builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
+  const catalogStart = Date.now();
+  
   if (type !== 'movie') {
     return { metas: [] };
   }
@@ -297,11 +299,19 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
       // No genre/country filter - return all movies for the year/decade
       log(`✓ Fetching catalog for: ${yearFilter}`);
       const movies = await getFilteredList(yearFilter);
-      log(`✓ Returning ${movies.length} movies for catalog ${id}`);
+      const catalogDuration = Date.now() - catalogStart;
+      log(`✓ Returning ${movies.length} movies for catalog ${id} in ${catalogDuration}ms`);
+      
+      // Track slow catalog responses
+      if (catalogDuration > 5000) {
+        log(`⚠️ Slow catalog response: ${id} took ${catalogDuration}ms`);
+      }
+      
       return { metas: movies };
     }
   } catch (error) {
-    logError(`✗ Error in catalog handler for ${id}:`, error.message);
+    const catalogDuration = Date.now() - catalogStart;
+    logError(`✗ Error in catalog handler for ${id} (${catalogDuration}ms):`, error.message);
     logError('Stack trace:', error.stack);
     return { metas: [] };
   }
@@ -310,6 +320,8 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 // Meta handler - returns the same metadata from catalog (with Italian description)
 // This ensures the FilmTV ratings and Italian descriptions persist when viewing movie details
 builder.defineMetaHandler(async ({ type, id, config }) => {
+  const metaStart = Date.now();
+  
   if (type !== 'movie') {
     return { meta: null };
   }
@@ -337,21 +349,25 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
     const movie = getMovieByImdbId(imdbId);
     
     if (movie) {
-      log(`✓ Returning metadata for ${imdbId} (${movie.name || 'unknown'})`);
+      const metaDuration = Date.now() - metaStart;
+      log(`✓ Returning metadata for ${imdbId} (${movie.name || 'unknown'}) in ${metaDuration}ms`);
       return { meta: movie };
     }
 
     // Fallback: fetch directly from TMDB by IMDB ID (Italian)
     const tmdbMovie = await getMovieByImdbIdFromTMDB(imdbId);
     if (tmdbMovie) {
-      log(`✓ Returning TMDB fallback metadata for ${imdbId} (${tmdbMovie.name || 'unknown'})`);
+      const metaDuration = Date.now() - metaStart;
+      log(`✓ Returning TMDB fallback metadata for ${imdbId} (${tmdbMovie.name || 'unknown'}) in ${metaDuration}ms`);
       return { meta: tmdbMovie };
     }
 
-    log(`✗ Movie ${imdbId} not found (cache or TMDB fallback)`);
+    const metaDuration = Date.now() - metaStart;
+    log(`✗ Movie ${imdbId} not found (cache or TMDB fallback) in ${metaDuration}ms`);
     return { meta: null };
   } catch (error) {
-    logError(`✗ Error in meta handler for ${id}:`, error.message);
+    const metaDuration = Date.now() - metaStart;
+    logError(`✗ Error in meta handler for ${id} (${metaDuration}ms):`, error.message);
     return { meta: null };
   }
 });
@@ -373,4 +389,34 @@ if (require.main === module) {
   log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
   log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
   log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  
+  // Pre-warm popular catalogs if TMDB API key is available
+  if (process.env.TMDB_API_KEY) {
+    setTMDBApiKey(process.env.TMDB_API_KEY);
+    // Pre-warm in background (don't block server startup)
+    setTimeout(() => {
+      prewarmPopularCatalogs().then(() => {
+        // Start background cache refresh after pre-warming
+        startCacheRefresh();
+      }).catch(err => {
+        logError('Error during pre-warming:', err.message);
+      });
+    }, 2000); // Wait 2 seconds after startup
+  } else {
+    log('⚠️ No TMDB_API_KEY in environment - skipping pre-warming');
+    log('💡 Pre-warming will happen when users configure their API key');
+  }
+  
+  // Log performance stats periodically
+  setInterval(() => {
+    const catalogStats = getResponseTimeStats('catalog', 5);
+    const tmdbStats = getResponseTimeStats('tmdb', 5);
+    
+    if (catalogStats) {
+      log(`📊 Performance (last 5min): Catalog avg=${Math.round(catalogStats.avg)}ms, p95=${Math.round(catalogStats.p95)}ms, max=${Math.round(catalogStats.max)}ms`);
+    }
+    if (tmdbStats) {
+      log(`📊 Performance (last 5min): TMDB avg=${Math.round(tmdbStats.avg)}ms, p95=${Math.round(tmdbStats.p95)}ms`);
+    }
+  }, 5 * 60 * 1000); // Every 5 minutes
 }
