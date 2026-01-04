@@ -49,7 +49,8 @@ const COUNTRIES = [
   'Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
   'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India',
   'Brasile', 'Messico', 'Russia', 'Argentina', 'Belgio', 'Svezia',
-  'Norvegia', 'Danimarca', 'Olanda', 'Polonia', 'Grecia', 'Turchia'
+  'Norvegia', 'Danimarca', 'Olanda', 'Polonia', 'Grecia', 'Turchia',
+  'Iran', 'Israele'
 ];
 
 // Combine genres and countries into single filter list
@@ -93,18 +94,9 @@ function buildManifest() {
         required: true,
         default: '',
         options: [
-          '',
-          '⚠️  QUESTA CHIAVE È OBBLIGATORIA!',
-          '',
-          '📝 Come ottenere la tua chiave TMDB:',
-          '1. Vai su https://www.themoviedb.org',
-          '2. Crea un account gratuito',
-          '3. Vai su Impostazioni → API',
-          '4. Richiedi una chiave API',
-          '5. Copia la chiave da "API Key (v3 auth)"',
-          '',
-          '✅ La chiave deve essere 32 caratteri esadecimali',
-          '❌ Senza questa chiave, l\'addon NON funzionerà'
+          'OBBLIGATORIA! Ottieni la chiave su themoviedb.org',
+          'Impostazioni → API → Richiedi chiave API',
+          'Copia la chiave da "API Key (v3 auth)"'
         ].join('\n')
       },
       {
@@ -114,49 +106,9 @@ function buildManifest() {
         required: false,
         default: '',
         options: [
-          '➕ AGGIUNGI I TUOI CATALOGHI PERSONALIZZATI',
-          '',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '📝 Formato: Nome Catalogo|filtro-1|filtro-2',
-          '   Separa più cataloghi con ";"',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '',
-          '🎯 ESEMPI PRONTI (copia e incolla):',
-          '',
-          '  Film Azione 2024|anno-2024|genere-azione',
-          '  Horror Italiani|genere-horror|paese-italia',
-          '  Commedie Francesi|genere-commedia|paese-francia',
-          '  Fantascienza Anni 2010|genere-fantascienza|anni-2010',
-          '  Thriller USA|genere-thriller|paese-usa',
-          '',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '🔍 FILTRI DISPONIBILI:',
-          '',
-          '📅 Anno:',
-          '  anno-2024, anno-2023, anno-2022, anno-2021, anno-2020',
-          '  anno-2019, anno-2018, anni-2010, anni-2000',
-          '',
-          '🎬 Genere:',
-          '  genere-azione, genere-commedia, genere-drammatico',
-          '  genere-horror, genere-fantascienza, genere-thriller',
-          '  genere-animazione, genere-documentario, genere-romantico',
-          '  genere-avventura, genere-fantasy, genere-guerra',
-          '',
-          '🌍 Paese:',
-          '  paese-usa, paese-italia, paese-francia, paese-gran-bretagna',
-          '  paese-giappone, paese-spagna, paese-germania, paese-russia',
-          '  paese-corea-del-sud, paese-canada, paese-australia, paese-brasile',
-          '  (e molti altri - usa il nome in minuscolo con trattini)',
-          '',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-          '💡 Per creare PIÙ cataloghi:',
-          '',
-          '  Azione 2024|anno-2024|genere-azione;',
-          '  Horror Italia|genere-horror|paese-italia;',
-          '  Commedie Francesi|genere-commedia|paese-francia',
-          '',
-          '  (nota il ";" tra i cataloghi)',
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+          'Formato: Nome|filtro1|filtro2',
+          'Es: Film Azione 2024|anno-2024|genere-azione',
+          'Filtri: anno-2024, genere-azione, paese-italia'
         ].join('\n')
       }
     ],
