@@ -43,17 +43,13 @@ const GENRES = ['Azione', 'Commedia', 'Drammatico', 'Horror', 'Fantascienza', 'T
                 'Animazione', 'Avventura', 'Fantasy', 'Guerra', 'Documentario', 'Romantico',
                 'Biografico', 'Storico', 'Musicale', 'Western', 'Noir', 'Giallo'];
 
+// Countries for dropdown (most common ones to keep manifest size under 8KB)
+// All other countries are still available via custom catalogs using filterMap
 const COUNTRIES = [
   'Italia', 'USA', 'Francia', 'Gran Bretagna', 'Germania', 'Spagna',
-  'Giappone', 'Corea del Sud', 'Corea del Nord', 'Canada', 'Australia', 'Cina', 'India',
-  'Argentina', 'Austria', 'Belgio', 'Brasile', 'Bulgaria', 'Burkina Faso',
-  'Cecoslovacchia', 'Cile', 'Colombia', 'Croazia', 'Cuba', 'Danimarca',
-  'Egitto', 'Finlandia', 'Georgia', 'Grecia', 'Hong Kong', 'Iran',
-  'Irlanda', 'Islanda', 'Israele', 'Jugoslavia', 'Lituania', 'Lussemburgo',
-  'Messico', 'Norvegia', 'Nuova Zelanda', 'Olanda', 'Panama', 'Polonia',
-  'Portogallo', 'Repubblica Ceca', 'Romania', 'Russia', 'Senegal',
-  'Sudafrica', 'Svezia', 'Svizzera', 'Taiwan', 'Thailandia', 'Tunisia',
-  'Turchia', 'Ungheria', 'URSS', 'Vietnam'
+  'Giappone', 'Corea del Sud', 'Canada', 'Australia', 'Cina', 'India',
+  'Brasile', 'Messico', 'Russia', 'Argentina', 'Belgio', 'Svezia',
+  'Norvegia', 'Danimarca', 'Olanda', 'Polonia', 'Grecia', 'Turchia'
 ];
 
 // Combine genres and countries into single filter list
@@ -150,9 +146,7 @@ function buildManifest() {
           '  paese-usa, paese-italia, paese-francia, paese-gran-bretagna',
           '  paese-giappone, paese-spagna, paese-germania, paese-russia',
           '  paese-corea-del-sud, paese-canada, paese-australia, paese-brasile',
-          '  paese-argentina, paese-messico, paese-svezia, paese-norvegia',
-          '  paese-grecia, paese-turchia, paese-iran, paese-israele',
-          '  (e molti altri - usa il nome del paese in minuscolo con trattini)',
+          '  (e molti altri - usa il nome in minuscolo con trattini)',
           '',
           '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
           '💡 Per creare PIÙ cataloghi:',
