@@ -155,8 +155,8 @@ function parseCustomCatalogs(customConfig) {
 // Create builder with default manifest
 const builder = new addonBuilder(buildManifest());
 
-// Catalog handler
-builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
+// Extract catalog handler logic to a separate function so we can call it from Express too
+async function handleCatalogRequest({ type, id, extra, config }) {
   const catalogStart = Date.now();
   
   if (type !== 'movie') {
@@ -320,11 +320,13 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
     logError('Stack trace:', error.stack);
     return { metas: [] };
   }
-});
+}
 
-// Meta handler - returns the same metadata from catalog (with Italian description)
-// This ensures the FilmTV ratings and Italian descriptions persist when viewing movie details
-builder.defineMetaHandler(async ({ type, id, config }) => {
+// Register the handler with builder
+builder.defineCatalogHandler(handleCatalogRequest);
+
+// Extract meta handler logic to a separate function
+async function handleMetaRequest({ type, id, config }) {
   const metaStart = Date.now();
   
   if (type !== 'movie') {
@@ -375,7 +377,10 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
     logError(`✗ Error in meta handler for ${id} (${metaDuration}ms):`, error.message);
     return { meta: null };
   }
-});
+}
+
+// Register the handler with builder
+builder.defineMetaHandler(handleMetaRequest);
 
 const PORT = process.env.PORT || 7860;
 
@@ -383,17 +388,94 @@ module.exports = builder.getInterface();
 
 // Start the addon server
 if (require.main === module) {
-  const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const http = require('http');
+  const { URL } = require('url');
 
-  // Listen on 0.0.0.0 to be accessible from outside the container
-  serveHTTP(builder.getInterface(), { 
-    port: PORT,
-    host: '0.0.0.0'  // Required for Railway and other cloud services
+  const app = express();
+  app.use(express.json());
+
+  // Health check endpoints (must be first)
+  app.get('/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      service: 'filmtv-x-stremio',
+      timestamp: new Date().toISOString()
+    });
   });
 
-  log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-  log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
-  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  app.get('/ping', (req, res) => {
+    res.json({ status: 'pong' });
+  });
+
+  app.get('/', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      service: 'filmtv-x-stremio',
+      endpoints: {
+        manifest: '/manifest.json',
+        health: '/health',
+        ping: '/ping'
+      }
+    });
+  });
+
+  // Handle manifest.json
+  app.get('/manifest.json', (req, res) => {
+    const manifest = buildManifest();
+    res.json(manifest);
+  });
+
+  // Handle catalog requests using our extracted handler function
+  app.get('/catalog/:type/:id.json', async (req, res) => {
+    try {
+      const { type, id } = req.params;
+      const query = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const extra = query.get('extra') ? JSON.parse(decodeURIComponent(query.get('extra'))) : undefined;
+      const config = query.get('config') ? JSON.parse(decodeURIComponent(query.get('config'))) : undefined;
+      
+      const result = await handleCatalogRequest({ type, id, extra, config });
+      res.json(result);
+    } catch (error) {
+      logError('Error in catalog handler:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Handle meta requests using our extracted handler function
+  app.get('/meta/:type/:id.json', async (req, res) => {
+    try {
+      const { type, id } = req.params;
+      const query = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const config = query.get('config') ? JSON.parse(decodeURIComponent(query.get('config'))) : undefined;
+      
+      const result = await handleMetaRequest({ type, id, config });
+      res.json(result);
+    } catch (error) {
+      logError('Error in meta handler:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create HTTP server
+  const server = http.createServer(app);
+
+  // Start server
+  server.listen(PORT, '0.0.0.0', () => {
+    log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`Health check available at: http://0.0.0.0:${PORT}/health`);
+    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  });
+  
+  // Keep-alive ping to prevent sleep
+  setInterval(() => {
+    http.get(`http://localhost:${PORT}/health`, (res) => {
+      // Just ping to keep server alive
+    }).on('error', () => {
+      // Ignore errors
+    });
+  }, 4 * 60 * 1000); // Every 4 minutes
   
   // Pre-warm popular catalogs if TMDB API key is available
   if (process.env.TMDB_API_KEY) {
@@ -424,4 +506,21 @@ if (require.main === module) {
       log(`📊 Performance (last 5min): TMDB avg=${Math.round(tmdbStats.avg)}ms, p95=${Math.round(tmdbStats.p95)}ms`);
     }
   }, 5 * 60 * 1000); // Every 5 minutes
+
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    log('📴 Received SIGTERM, shutting down gracefully...');
+    server.close(() => {
+      log('✅ Server closed');
+      process.exit(0);
+    });
+  });
+
+  process.on('SIGINT', () => {
+    log('📴 Received SIGINT, shutting down gracefully...');
+    server.close(() => {
+      log('✅ Server closed');
+      process.exit(0);
+    });
+  });
 }
