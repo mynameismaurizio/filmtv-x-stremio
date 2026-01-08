@@ -468,21 +468,15 @@ if (require.main === module) {
     log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
   });
   
-  // Keep-alive ping to prevent sleep - più frequente per Railway
+  // Keep-alive ping come backup (Railway fa già i suoi health check esterni)
+  // Ridotto a ogni 5 minuti - serve solo come fallback se Railway non fa health check
   setInterval(() => {
     http.get(`http://localhost:${PORT}/health`, (res) => {
-      log('💓 Keep-alive ping sent');
-    }).on('error', (err) => {
-      logError('Keep-alive ping failed:', err.message);
+      // Silent - non loggare per non riempire i log
+    }).on('error', () => {
+      // Ignore errors
     });
-  }, 30 * 1000); // Ogni 30 secondi invece di 4 minuti
-
-  // Ping immediato all'avvio per Railway
-  setTimeout(() => {
-    http.get(`http://localhost:${PORT}/health`, () => {
-      log('💓 Initial keep-alive ping sent');
-    }).on('error', () => {});
-  }, 2000); // Dopo 2 secondi dall'avvio
+  }, 5 * 60 * 1000); // Ogni 5 minuti come backup
   
   // Pre-warm popular catalogs if TMDB API key is available
   if (process.env.TMDB_API_KEY) {
