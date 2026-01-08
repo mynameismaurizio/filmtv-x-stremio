@@ -384,16 +384,48 @@ module.exports = builder.getInterface();
 // Start the addon server
 if (require.main === module) {
   const { serveHTTP } = require('stremio-addon-sdk');
+  const express = require('express');
+  const { createProxyMiddleware } = require('http-proxy-middleware');
+  const http = require('http');
 
-  // Listen on 0.0.0.0 to be accessible from outside the container
+  // Start serveHTTP on an internal port
+  const INTERNAL_PORT = PORT + 1;
   serveHTTP(builder.getInterface(), { 
-    port: PORT,
-    host: '0.0.0.0'  // Required for Railway and other cloud services
+    port: INTERNAL_PORT,
+    host: '0.0.0.0'
   });
 
-  log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-  log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
-  log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  // Create Express app for health check and proxy
+  const app = express();
+
+  // Health check endpoint (must be first)
+  app.get('/health', (req, res) => {
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'filmtv-x-stremio',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  app.get('/ping', (req, res) => {
+    res.json({ status: 'pong' });
+  });
+
+  // Proxy all other requests to serveHTTP
+  app.use(createProxyMiddleware({
+    target: `http://localhost:${INTERNAL_PORT}`,
+    changeOrigin: true,
+    logLevel: 'silent'
+  }));
+
+  // Create HTTP server
+  const server = http.createServer(app);
+  server.listen(PORT, '0.0.0.0', () => {
+    log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
+    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+    log(`Health check available at: http://0.0.0.0:${PORT}/health`);
+    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+  });
   
   // Pre-warm popular catalogs if TMDB API key is available
   if (process.env.TMDB_API_KEY) {
