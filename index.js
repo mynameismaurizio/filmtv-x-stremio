@@ -388,17 +388,10 @@ if (require.main === module) {
   const { createProxyMiddleware } = require('http-proxy-middleware');
   const http = require('http');
 
-  // Start serveHTTP on an internal port
-  const INTERNAL_PORT = PORT + 1;
-  serveHTTP(builder.getInterface(), { 
-    port: INTERNAL_PORT,
-    host: '0.0.0.0'
-  });
-
   // Create Express app for health check and proxy
   const app = express();
 
-  // Health check endpoint (must be first)
+  // Health check endpoint (must be first) - respond immediately
   app.get('/health', (req, res) => {
     res.status(200).json({ 
       status: 'ok', 
@@ -411,20 +404,36 @@ if (require.main === module) {
     res.json({ status: 'pong' });
   });
 
-  // Proxy all other requests to serveHTTP
-  app.use(createProxyMiddleware({
-    target: `http://localhost:${INTERNAL_PORT}`,
-    changeOrigin: true,
-    logLevel: 'silent'
-  }));
-
-  // Create HTTP server
+  // Start Express server first (for health checks)
   const server = http.createServer(app);
   server.listen(PORT, '0.0.0.0', () => {
     log(`FilmTV.it addon running on http://0.0.0.0:${PORT}`);
-    log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
     log(`Health check available at: http://0.0.0.0:${PORT}/health`);
-    log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+    
+    // Start serveHTTP on an internal port after Express is ready
+    const INTERNAL_PORT = PORT + 1;
+    setTimeout(() => {
+      serveHTTP(builder.getInterface(), { 
+        port: INTERNAL_PORT,
+        host: '0.0.0.0'
+      });
+
+      // Setup proxy after serveHTTP is started
+      app.use(createProxyMiddleware({
+        target: `http://localhost:${INTERNAL_PORT}`,
+        changeOrigin: true,
+        logLevel: 'silent',
+        onError: (err, req, res) => {
+          logError('Proxy error:', err.message);
+          if (!res.headersSent) {
+            res.status(502).json({ error: 'Service temporarily unavailable' });
+          }
+        }
+      }));
+
+      log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
+      log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
+    }, 500); // Small delay to ensure Express is fully ready
   });
   
   // Pre-warm popular catalogs if TMDB API key is available
