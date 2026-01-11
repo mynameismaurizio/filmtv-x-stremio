@@ -715,9 +715,9 @@ async function scrapeFilmTVList(year) {
         if (originalTitleElem.length > 0) {
           const originalTitleText = originalTitleElem.text().trim();
           // Extract text after "Titolo originale"
-          const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
-          if (match && match[1]) {
-            originalTitle = match[1].trim();
+          const originalTitleMatch = originalTitleText.match(/Titolo originale\s*(.+)/i);
+          if (originalTitleMatch && originalTitleMatch[1]) {
+            originalTitle = originalTitleMatch[1].trim();
           }
         }
 
@@ -778,9 +778,9 @@ async function scrapeFilmTVList(year) {
                   if (originalTitleElem.length > 0) {
                     const originalTitleText = originalTitleElem.text().trim();
                     // Extract text after "Titolo originale"
-                    const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
-                    if (match && match[1]) {
-                      originalTitle = match[1].trim();
+                    const originalTitleMatch = originalTitleText.match(/Titolo originale\s*(.+)/i);
+                    if (originalTitleMatch && originalTitleMatch[1]) {
+                      originalTitle = originalTitleMatch[1].trim();
                     }
                   }
 
@@ -896,9 +896,9 @@ async function getFilteredList(filters) {
           if (originalTitleElem.length > 0) {
             const originalTitleText = originalTitleElem.text().trim();
             // Extract text after "Titolo originale"
-            const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
-            if (match && match[1]) {
-              originalTitle = match[1].trim();
+            const originalTitleMatch = originalTitleText.match(/Titolo originale\s*(.+)/i);
+            if (originalTitleMatch && originalTitleMatch[1]) {
+              originalTitle = originalTitleMatch[1].trim();
             }
           }
 
@@ -965,9 +965,9 @@ async function getFilteredList(filters) {
                   if (originalTitleElem.length > 0) {
                     const originalTitleText = originalTitleElem.text().trim();
                     // Extract text after "Titolo originale"
-                    const match = originalTitleText.match(/Titolo originale\s*(.+)/i);
-                    if (match && match[1]) {
-                      originalTitle = match[1].trim();
+                    const originalTitleMatch = originalTitleText.match(/Titolo originale\s*(.+)/i);
+                    if (originalTitleMatch && originalTitleMatch[1]) {
+                      originalTitle = originalTitleMatch[1].trim();
                     }
                   }
 
@@ -1270,21 +1270,19 @@ async function prewarmPopularCatalogs() {
     'anni-2010'
   ];
   
-  // Pre-warm in parallel (but limited concurrency)
-  const prewarmPromises = popularCatalogs.map(async (filter) => {
-    try {
-      const start = Date.now();
-      await getFilteredList(filter);
-      const duration = Date.now() - start;
-      log(`✅ Pre-warmed ${filter} in ${duration}ms`);
-    } catch (error) {
-      logError(`❌ Failed to pre-warm ${filter}:`, error.message);
-    }
-  });
-  
-  // Process 2 at a time to avoid overwhelming on startup
-  for (let i = 0; i < prewarmPromises.length; i += 2) {
-    await Promise.all(prewarmPromises.slice(i, i + 2));
+  // Pre-warm in batches of 2 to avoid overwhelming on startup
+  for (let i = 0; i < popularCatalogs.length; i += 2) {
+    const batch = popularCatalogs.slice(i, i + 2);
+    await Promise.all(batch.map(async (filter) => {
+      try {
+        const start = Date.now();
+        await getFilteredList(filter);
+        const duration = Date.now() - start;
+        log(`✅ Pre-warmed ${filter} in ${duration}ms`);
+      } catch (error) {
+        logError(`❌ Failed to pre-warm ${filter}:`, error.message);
+      }
+    }));
   }
   
   log('✅ Pre-warming complete');

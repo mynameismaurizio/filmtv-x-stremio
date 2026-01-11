@@ -377,7 +377,7 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
   }
 });
 
-const PORT = process.env.PORT || 7860;
+const PORT = parseInt(process.env.PORT, 10) || 7860;
 
 module.exports = builder.getInterface();
 
@@ -390,18 +390,33 @@ if (require.main === module) {
 
   // Create Express app for health check and proxy
   const app = express();
+  
+  // Track addon readiness
+  let addonReady = false;
 
   // Health check endpoint (must be first) - respond immediately
   app.get('/health', (req, res) => {
     res.status(200).json({ 
-      status: 'ok', 
+      status: addonReady ? 'ok' : 'starting', 
       service: 'filmtv-x-stremio',
+      ready: addonReady,
       timestamp: new Date().toISOString()
     });
   });
 
   app.get('/ping', (req, res) => {
     res.json({ status: 'pong' });
+  });
+  
+  // Return 503 for all other routes until addon is ready
+  app.use((req, res, next) => {
+    if (!addonReady) {
+      return res.status(503).json({ 
+        error: 'Service starting up, please retry in a moment',
+        retryAfter: 1
+      });
+    }
+    next();
   });
 
   // Start Express server first (for health checks)
@@ -431,6 +446,8 @@ if (require.main === module) {
         }
       }));
 
+      // Mark addon as ready
+      addonReady = true;
       log(`Manifest available at: http://0.0.0.0:${PORT}/manifest.json`);
       log(`Addon ready! Configure TMDB API key in Stremio when installing.`);
     }, 500); // Small delay to ensure Express is fully ready
